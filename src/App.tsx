@@ -1,32 +1,20 @@
+import { useState } from 'react'
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext'
 import AuthScreen from '@/features/auth/AuthScreen'
-import { motion } from 'framer-motion'
+import BottomNav, { type NavTab } from '@/components/BottomNav'
+import LibraryScreen from '@/features/library/LibraryScreen'
 
-function SignedInShell() {
-  const { signOut, profile } = useAuth()
+function PlaceholderScreen({ label }: { label: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4"
-    >
-      <h1 className="text-2xl font-semibold text-zinc-100">FitTrack</h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        Hey {profile?.display_name || 'there'}, you're in.
-      </p>
-      <p className="mt-1 text-xs text-zinc-700">Dashboard coming in step 4+</p>
-      <button
-        onClick={signOut}
-        className="mt-8 text-sm text-zinc-600 hover:text-zinc-400"
-      >
-        Sign out
-      </button>
-    </motion.div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 pb-24">
+      <p className="text-sm text-zinc-600">{label} — coming soon</p>
+    </div>
   )
 }
 
-function Inner() {
+function AppShell() {
   const { user, loading } = useAuth()
+  const [tab, setTab] = useState<NavTab>('library')
 
   if (loading) {
     return (
@@ -37,13 +25,22 @@ function Inner() {
   }
 
   if (!user) return <AuthScreen />
-  return <SignedInShell />
+
+  return (
+    <div className="bg-zinc-950">
+      {tab === 'workout'   && <PlaceholderScreen label="Workout" />}
+      {tab === 'library'   && <LibraryScreen />}
+      {tab === 'dashboard' && <PlaceholderScreen label="Dashboard" />}
+      {tab === 'feed'      && <PlaceholderScreen label="Feed" />}
+      <BottomNav active={tab} onChange={setTab} />
+    </div>
+  )
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <Inner />
+      <AppShell />
     </AuthProvider>
   )
 }
