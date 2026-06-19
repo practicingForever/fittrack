@@ -25,6 +25,9 @@ create type set_type     as enum ('warmup', 'working', 'dropset', 'failure');
 create type cardio_mode  as enum ('running', 'rowing');
 create type wod_type     as enum ('amrap', 'emom', 'for_time', 'tabata');
 create type connection_status as enum ('pending', 'accepted');
+-- 'private' => only the owner sees it (Kartik's / Nat's library).
+-- 'shared'  => owner + connected partner see it (Shared library).
+create type exercise_visibility as enum ('private', 'shared');
 
 -- ---------------------------------------------------------------------------
 -- profiles  (1:1 with auth.users)
@@ -92,28 +95,95 @@ create policy "connections_delete_own"
   using ((select auth.uid()) = user_id);
 
 -- ---------------------------------------------------------------------------
--- exercises  (per-user library; owner_id null = global seed, read by all)
+-- muscle_groups  (lookup for the category dropdown: presets + custom)
+-- A small shared vocabulary table. Preset rows (is_preset = true) ship with
+-- the app; either user can insert custom rows that then appear in everyone's
+-- dropdown. Referenced by exercises.muscle_group_id.
 -- ---------------------------------------------------------------------------
-create table exercises (
-  id            uuid primary key default gen_random_uuid(),
-  owner_id      uuid references profiles (id) on delete cascade,
-  name          text not null,
-  category      exercise_cat not null,
-  muscle_group  text,
-  is_unilateral boolean not null default false,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+create table muscle_groups (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null unique,
+  is_preset  boolean not null default false,
+  created_by uuid references profiles (id) on delete set null,
+  sort_order integer not null default 100,
+  created_at timestamptz not null default now()
 );
 
-create index exercises_owner_id_idx on exercises (owner_id);
-create index exercises_category_idx on exercises (category);
+create index muscle_groups_created_by_idx on muscle_groups (created_by);
+
+alter table muscle_groups enable row level security;
+
+-- Everyone reads the whole vocabulary (presets + any custom additions).
+create policy "muscle_groups_select_all"
+  on muscle_groups for select to authenticated
+  using (true);
+
+create policy "muscle_groups_insert_own"
+  on muscle_groups for insert to authenticated
+  with check ((select auth.uid()) = created_by);
+
+-- Only custom rows you created may be edited/removed; presets are protected.
+create policy "muscle_groups_update_own_custom"
+  on muscle_groups for update to authenticated
+  using ((select auth.uid()) = created_by and not is_preset)
+  with check ((select auth.uid()) = created_by and not is_preset);
+
+create policy "muscle_groups_delete_own_custom"
+  on muscle_groups for delete to authenticated
+  using ((select auth.uid()) = created_by and not is_preset);
+
+-- Preset muscle groups (custom ones get added by users at runtime).
+insert into muscle_groups (name, is_preset, sort_order) values
+  ('Chest',      true, 10),
+  ('Back',       true, 20),
+  ('Legs',       true, 30),
+  ('Shoulders',  true, 40),
+  ('Arms',       true, 50),
+  ('Core',       true, 60),
+  ('Glutes',     true, 70),
+  ('Full Body',  true, 80),
+  ('Cardio',     true, 90)
+on conflict (name) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- exercises  (per-user library with three-way visibility)
+-- ---------------------------------------------------------------------------
+create table exercises (
+  id              uuid primary key default gen_random_uuid(),
+  owner_id        uuid references profiles (id) on delete cascade,
+  name            text not null,
+  category        exercise_cat not null,
+  muscle_group_id uuid references muscle_groups (id) on delete set null,
+  is_unilateral   boolean not null default false,
+  visibility      exercise_visibility not null default 'private',
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+create index exercises_owner_id_idx     on exercises (owner_id);
+create index exercises_category_idx     on exercises (category);
+create index exercises_muscle_group_idx on exercises (muscle_group_id);
+create index exercises_visibility_idx   on exercises (visibility);
 
 alter table exercises enable row level security;
 
--- Read your own exercises plus the global (owner_id is null) seed library.
-create policy "exercises_select_own_or_global"
+-- Read: your own exercises (any visibility), a connected partner's SHARED
+-- exercises, and any null-owner global seeds.
+create policy "exercises_select_own_shared_or_global"
   on exercises for select to authenticated
-  using (owner_id is null or (select auth.uid()) = owner_id);
+  using (
+    owner_id is null
+    or (select auth.uid()) = owner_id
+    or (
+      visibility = 'shared'
+      and exists (
+        select 1 from connections c
+        where c.status = 'accepted'
+          and c.friend_id = (select auth.uid())
+          and c.user_id  = exercises.owner_id
+      )
+    )
+  );
 
 create policy "exercises_insert_own"
   on exercises for insert to authenticated

@@ -32,7 +32,12 @@ Or paste the migration into the Supabase dashboard SQL editor.
 ### Data model at a glance
 - `profiles` — one per auth user; unit + pace display prefs.
 - `connections` — mutual follow between the two users (powers feed/leaderboard).
-- `exercises` — per-user library; `owner_id` null rows are the shared seed set.
+- `muscle_groups` — lookup for the category dropdown; ships with presets, either
+  user can add custom groups that then appear for both.
+- `exercises` — per-user library categorised by `category` + `muscle_group_id`,
+  with three-way `visibility`: a private exercise is one library (Kartik's or
+  Nat's), a `shared` exercise appears in the Shared library for both users.
+  Only the owner can edit/delete, even when shared.
 - `workouts` — session container; holds the computed `session_grade`.
 - `wods` — a timed block inside a workout (timer config only, no own score).
 - `strength_sets` / `cardio_sets` — individual logged sets, each with an
