@@ -29,6 +29,7 @@ export default function WorkoutScreen() {
     startWorkout, endWorkout, addExercise, logSet,
     cardioSets, logCardio,
     activeWod, startWod, clearWod,
+    timerStatus, startTimer, pauseTimer, resumeTimer,
   } = useWorkout()
 
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -42,7 +43,7 @@ export default function WorkoutScreen() {
     ghost: StrengthSet | null
   }>({ open: false, exercise: null, setIndex: 1, ghost: null })
 
-  const { state: timerState, start: startTimer, stop: stopTimer, elapsedSeconds } = useWodTimer(activeWod)
+  const { state: timerState, start: startWodTimer, stop: stopTimer, elapsedSeconds } = useWodTimer(activeWod)
   const { state: restState, start: startRest, skip: skipRest, setDuration: setRestDuration } = useRestTimer(90)
 
   const openLogSheet = async (exercise: Exercise, currentSetCount: number) => {
@@ -105,19 +106,47 @@ export default function WorkoutScreen() {
       {/* Header */}
       <div className="sticky top-0 z-20 bg-zinc-950/90 px-4 pt-12 pb-3 backdrop-blur-md">
         <div className="flex items-center justify-between">
+          {/* Left: timer display */}
           <div>
-            <p className="text-xs text-zinc-500">Active workout</p>
-            <p className="font-mono text-2xl font-semibold text-zinc-100">
-              {formatElapsed(elapsed)}
+            <p className="text-xs text-zinc-500">
+              {timerStatus === 'idle' ? 'Workout ready' : timerStatus === 'paused' ? 'Paused' : 'Active workout'}
+            </p>
+            <p className={`font-mono text-2xl font-semibold ${timerStatus === 'idle' ? 'text-zinc-600' : timerStatus === 'paused' ? 'text-yellow-400' : 'text-zinc-100'}`}>
+              {timerStatus === 'idle' ? '--:--' : formatElapsed(elapsed)}
             </p>
           </div>
+
+          {/* Right: controls */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setWodConfigOpen(true)}
-              className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-zinc-300"
-            >
-              WOD
-            </button>
+            {timerStatus === 'idle' && (
+              <button
+                onClick={startTimer}
+                className="rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-950"
+              >
+                Start timer
+              </button>
+            )}
+            {timerStatus === 'running' && (
+              <button
+                onClick={pauseTimer}
+                className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-zinc-300"
+              >
+                Pause
+              </button>
+            )}
+            {timerStatus === 'paused' && (
+              <button
+                onClick={resumeTimer}
+                className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-yellow-400"
+              >
+                Resume
+              </button>
+            )}
+            {timerStatus !== 'idle' && (
+              <button onClick={() => setWodConfigOpen(true)} className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-zinc-300">
+                WOD
+              </button>
+            )}
             <button
               onClick={handleEndWorkout}
               className="rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700"
@@ -283,7 +312,7 @@ export default function WorkoutScreen() {
         onClose={() => setWodConfigOpen(false)}
         onStart={async (input) => {
           const wod = await startWod(input)
-          if (wod) startTimer()
+          if (wod) startWodTimer()
         }}
       />
 

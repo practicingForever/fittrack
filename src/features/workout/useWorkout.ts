@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/features/auth/AuthContext'
 import {
   createWorkout, finishWorkout, logStrengthSet,
@@ -13,6 +13,8 @@ interface ExerciseEntry {
   sets: StrengthSet[]
 }
 
+type TimerStatus = 'idle' | 'running' | 'paused'
+
 export function useWorkout() {
   const { user } = useAuth()
   const [workout, setWorkout] = useState<Workout | null>(null)
@@ -20,16 +22,44 @@ export function useWorkout() {
   const [elapsed, setElapsed] = useState(0) // seconds
   const [cardioSets, setCardioSets] = useState<CardioSet[]>([])
   const [activeWod, setActiveWod] = useState<Wod | null>(null)
+  const [timerStatus, setTimerStatus] = useState<TimerStatus>('idle')
 
-  // Timer
+  const timerStartRef = useRef<number | null>(null)   // performance.now() when last resumed
+  const accumulatedRef = useRef(0)                     // ms accumulated before last pause
+  const rafRef = useRef<number | null>(null)
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (!workout || workout.ended_at) return
-    const interval = setInterval(() => {
-      const startMs = new Date(workout.started_at).getTime()
-      setElapsed(Math.floor((Date.now() - startMs) / 1000))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [workout])
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [])
+
+  const tick = useCallback(() => {
+    if (!timerStartRef.current) return
+    const ms = accumulatedRef.current + (performance.now() - timerStartRef.current)
+    setElapsed(Math.floor(ms / 1000))
+    rafRef.current = requestAnimationFrame(tick)
+  }, [])
+
+  const startTimer = useCallback(() => {
+    timerStartRef.current = performance.now()
+    setTimerStatus('running')
+    rafRef.current = requestAnimationFrame(tick)
+  }, [tick])
+
+  const pauseTimer = useCallback(() => {
+    if (timerStartRef.current) {
+      accumulatedRef.current += performance.now() - timerStartRef.current
+      timerStartRef.current = null
+    }
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    setTimerStatus('paused')
+  }, [])
+
+  const resumeTimer = useCallback(() => {
+    timerStartRef.current = performance.now()
+    setTimerStatus('running')
+    rafRef.current = requestAnimationFrame(tick)
+  }, [tick])
 
   const startWorkout = useCallback(async () => {
     if (!user) return
@@ -38,6 +68,11 @@ export function useWorkout() {
     setEntries([])
     setCardioSets([])
     setActiveWod(null)
+    setTimerStatus('idle')
+    setElapsed(0)
+    timerStartRef.current = null
+    accumulatedRef.current = 0
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
   }, [user])
 
   const endWorkout = useCallback(async () => {
@@ -48,6 +83,10 @@ export function useWorkout() {
     setElapsed(0)
     setCardioSets([])
     setActiveWod(null)
+    setTimerStatus('idle')
+    timerStartRef.current = null
+    accumulatedRef.current = 0
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
   }, [workout])
 
   const addExercise = useCallback(async (exercise: Exercise) => {
@@ -96,5 +135,6 @@ export function useWorkout() {
     cardioSets, logCardio,
     activeWod, startWod, clearWod,
     startWorkout, endWorkout, addExercise, logSet, getGhostSet,
+    timerStatus, startTimer, pauseTimer, resumeTimer,
   }
 }
