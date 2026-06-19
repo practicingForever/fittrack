@@ -5,14 +5,8 @@ import BottomNav, { type NavTab } from '@/components/BottomNav'
 import LibraryScreen from '@/features/library/LibraryScreen'
 import WorkoutScreen from '@/features/workout/WorkoutScreen'
 import DashboardScreen from '@/features/dashboard/DashboardScreen'
+import FeedScreen from '@/features/feed/FeedScreen'
 
-function PlaceholderScreen({ label }: { label: string }) {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 pb-24">
-      <p className="text-sm text-zinc-600">{label} — coming soon</p>
-    </div>
-  )
-}
 
 function AppShell() {
   const { user, loading } = useAuth()
@@ -33,7 +27,7 @@ function AppShell() {
       {tab === 'workout'   && <WorkoutScreen />}
       {tab === 'library'   && <LibraryScreen />}
       {tab === 'dashboard' && <DashboardScreen />}
-      {tab === 'feed'      && <PlaceholderScreen label="Feed" />}
+      {tab === 'feed'      && <FeedScreen />}
       <BottomNav active={tab} onChange={setTab} />
     </div>
   )
