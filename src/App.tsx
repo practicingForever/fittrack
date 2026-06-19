@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthContext'
 import AuthScreen from '@/features/auth/AuthScreen'
 import BottomNav, { type NavTab } from '@/components/BottomNav'
 import LibraryScreen from '@/features/library/LibraryScreen'
+import WorkoutScreen from '@/features/workout/WorkoutScreen'
 
 function PlaceholderScreen({ label }: { label: string }) {
   return (
@@ -28,7 +29,7 @@ function AppShell() {
 
   return (
     <div className="bg-zinc-950">
-      {tab === 'workout'   && <PlaceholderScreen label="Workout" />}
+      {tab === 'workout'   && <WorkoutScreen />}
       {tab === 'library'   && <LibraryScreen />}
       {tab === 'dashboard' && <PlaceholderScreen label="Dashboard" />}
       {tab === 'feed'      && <PlaceholderScreen label="Feed" />}
