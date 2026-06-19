@@ -5,10 +5,9 @@ import type { Exercise, ExerciseMuscleGroup, MuscleGroup, ExerciseCat, ExerciseV
 
 /** Seed local Dexie with exercises + muscle groups + junction rows from Supabase. */
 export async function seedLibrary(): Promise<void> {
-  const [{ data: exercises }, { data: groups }, { data: emg }] = await Promise.all([
+  const [{ data: exercises }, { data: groups }] = await Promise.all([
     supabase.from('exercises').select('*'),
     supabase.from('muscle_groups').select('*').order('sort_order'),
-    supabase.from('exercise_muscle_groups').select('*'),
   ])
   if (exercises?.length) {
     await db.exercises.bulkPut(exercises as unknown as Exercise[])
@@ -16,8 +15,15 @@ export async function seedLibrary(): Promise<void> {
   if (groups?.length) {
     await db.muscle_groups.bulkPut(groups as unknown as MuscleGroup[])
   }
-  if (emg?.length) {
-    await db.exercise_muscle_groups.bulkPut(emg as unknown as ExerciseMuscleGroup[])
+  // Junction table may not exist yet — seed it separately so a failure here
+  // doesn't block exercises/muscle groups from loading.
+  try {
+    const { data: emg } = await supabase.from('exercise_muscle_groups').select('*')
+    if (emg?.length) {
+      await db.exercise_muscle_groups.bulkPut(emg as unknown as ExerciseMuscleGroup[])
+    }
+  } catch {
+    // table not migrated yet — non-fatal
   }
 }
 
