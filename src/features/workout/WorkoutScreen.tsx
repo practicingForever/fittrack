@@ -10,7 +10,10 @@ import WodResultSheet from '@/features/wod/WodResultSheet'
 import { useWodTimer } from '@/features/wod/useWodTimer'
 import { useRestTimer } from './useRestTimer'
 import RestTimerBar from './RestTimerBar'
-import type { Exercise, StrengthSet } from '@/lib/types'
+import PlansScreen from './PlansScreen'
+import { touchPlan } from '@/lib/plans'
+import { db } from '@/lib/db'
+import type { Exercise, StrengthSet, WorkoutPlan, PlanExercise } from '@/lib/types'
 import { getPreviousSet } from '@/lib/workouts'
 import { scoreLabel } from '@/lib/scoring'
 import { formatDuration as formatCarduroDuration } from '@/lib/cardio'
@@ -32,6 +35,8 @@ export default function WorkoutScreen() {
     timerStatus, startTimer, pauseTimer, resumeTimer,
   } = useWorkout()
 
+  const [showPlans, setShowPlans] = useState(false)
+  const [planTargets, setPlanTargets] = useState<Map<string, PlanExercise>>(new Map())
   const [pickerOpen, setPickerOpen] = useState(false)
   const [cardioSheetOpen, setCardioSheetOpen] = useState(false)
   const [wodConfigOpen, setWodConfigOpen] = useState(false)
@@ -46,9 +51,43 @@ export default function WorkoutScreen() {
   const { state: timerState, start: startWodTimer, stop: stopTimer, elapsedSeconds } = useWodTimer(activeWod)
   const { state: restState, start: startRest, skip: skipRest, setDuration: setRestDuration } = useRestTimer(90)
 
+  const handleStartFromPlan = async (plan: WorkoutPlan, planExercises: PlanExercise[]) => {
+    await touchPlan(plan.id)
+    await startWorkout()
+    // Map exercise_id -> plan exercise for ghost text
+    const targetMap = new Map(planExercises.map(pe => [pe.exercise_id, pe]))
+    setPlanTargets(targetMap)
+    setShowPlans(false)
+    // Add all exercises
+    for (const pe of planExercises) {
+      const ex = await db.exercises.get(pe.exercise_id)
+      if (ex) await addExercise(ex)
+    }
+  }
+
   const openLogSheet = async (exercise: Exercise, currentSetCount: number) => {
     const setIndex = currentSetCount + 1
-    const ghost = await getPreviousSet(exercise.id, setIndex)
+    let ghost = await getPreviousSet(exercise.id, setIndex)
+    // Use plan targets as ghost hint if no history yet
+    if (!ghost) {
+      const planTarget = planTargets.get(exercise.id)
+      if (planTarget && (planTarget.target_weight_kg || planTarget.target_reps)) {
+        ghost = {
+          id: 'plan-hint',
+          workout_id: '',
+          exercise_id: exercise.id,
+          wod_id: null,
+          set_index: setIndex,
+          weight_kg: planTarget.target_weight_kg ?? 0,
+          reps: planTarget.target_reps ?? 0,
+          side: 'both',
+          type: 'working',
+          effort_score: null,
+          logged_at: '',
+          updated_at: '',
+        } as StrengthSet
+      }
+    }
     setLogSheet({ open: true, exercise, setIndex, ghost })
   }
 
@@ -82,19 +121,34 @@ export default function WorkoutScreen() {
 
   // No active workout
   if (!workout) {
+    if (showPlans) {
+      return (
+        <PlansScreen
+          onStartFromPlan={handleStartFromPlan}
+          onBack={() => setShowPlans(false)}
+        />
+      )
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 pb-24">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-xs text-center"
+          className="w-full max-w-xs flex flex-col gap-3"
         >
-          <p className="mb-6 text-sm text-zinc-500">No active workout</p>
+          <h1 className="mb-2 text-center text-2xl font-semibold text-zinc-100">FitTrack</h1>
           <button
             onClick={startWorkout}
             className="w-full rounded-2xl bg-zinc-100 py-4 text-base font-semibold text-zinc-950"
           >
-            Start workout
+            Start blank workout
+          </button>
+          <button
+            onClick={() => setShowPlans(true)}
+            className="w-full rounded-2xl bg-zinc-900 py-4 text-base font-semibold text-zinc-300"
+          >
+            Start from plan
           </button>
         </motion.div>
       </div>

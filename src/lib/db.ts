@@ -1,7 +1,8 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   Profile, Connection, MuscleGroup, Exercise,
-  Workout, Wod, StrengthSet, CardioSet
+  Workout, Wod, StrengthSet, CardioSet,
+  WorkoutPlan, PlanExercise
 } from './types'
 
 export type SyncOp = 'insert' | 'update' | 'delete'
@@ -25,6 +26,8 @@ export class FitTrackDB extends Dexie {
   strength_sets!: Table<StrengthSet, string>
   cardio_sets!: Table<CardioSet, string>
   sync_queue!: Table<SyncQueueItem, number>
+  workout_plans!: Table<WorkoutPlan, string>
+  plan_exercises!: Table<PlanExercise, string>
 
   constructor() {
     super('fittrack')
@@ -38,6 +41,10 @@ export class FitTrackDB extends Dexie {
       strength_sets: 'id, workout_id, exercise_id, wod_id, [exercise_id+set_index]',
       cardio_sets:   'id, workout_id, exercise_id, wod_id, mode',
       sync_queue:    '++id, table, created_at',
+    })
+    this.version(2).stores({
+      workout_plans:  'id, created_at',
+      plan_exercises: 'id, plan_id',
     })
   }
 }

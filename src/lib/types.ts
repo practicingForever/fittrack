@@ -92,6 +92,24 @@ export interface StrengthSet {
   updated_at: string
 }
 
+export interface WorkoutPlan {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PlanExercise {
+  id: string
+  plan_id: string
+  exercise_id: string
+  exercise_name: string    // denormalised for display without join
+  order_index: number
+  target_sets: number
+  target_reps: number | null
+  target_weight_kg: number | null
+}
+
 export interface CardioSet {
   id: string
   workout_id: string
