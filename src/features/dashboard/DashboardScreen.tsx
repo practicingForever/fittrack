@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import StreakCard from './StreakCard'
 import ExerciseGraph from './ExerciseGraph'
 import VolumeTrend from './VolumeTrend'
 import CardioTrend from './CardioTrend'
@@ -15,6 +16,8 @@ export default function DashboardScreen() {
       </div>
 
       <div className="flex flex-col gap-8 px-4 pt-4">
+        <StreakCard />
+        <div className="border-t border-zinc-900" />
         <ExerciseGraph />
         <div className="border-t border-zinc-900" />
         <VolumeTrend />
