@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-export type NavTab = 'workout' | 'library' | 'dashboard' | 'feed'
+export type NavTab = 'workout' | 'wod' | 'library' | 'dashboard' | 'feed'
 
 interface BottomNavProps {
   active: NavTab
@@ -8,10 +8,11 @@ interface BottomNavProps {
 }
 
 const tabs: { id: NavTab; label: string; icon: string }[] = [
-  { id: 'workout', label: 'Workout', icon: '💪' },
-  { id: 'library', label: 'Library', icon: '📚' },
+  { id: 'workout',   label: 'Workout',   icon: '💪' },
+  { id: 'wod',       label: 'WOD',       icon: '⏱️' },
+  { id: 'library',   label: 'Library',   icon: '📚' },
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'feed', label: 'Feed', icon: '🏆' },
+  { id: 'feed',      label: 'Feed',      icon: '🏆' },
 ]
 
 export default function BottomNav({ active, onChange }: BottomNavProps) {

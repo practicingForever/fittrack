@@ -6,11 +6,12 @@ import LibraryScreen from '@/features/library/LibraryScreen'
 import WorkoutScreen from '@/features/workout/WorkoutScreen'
 import DashboardScreen from '@/features/dashboard/DashboardScreen'
 import FeedScreen from '@/features/feed/FeedScreen'
+import WodScreen from '@/features/wod/WodScreen'
 
 
 function AppShell() {
   const { user, loading } = useAuth()
-  const [tab, setTab] = useState<NavTab>('library')
+  const [tab, setTab] = useState<NavTab>('workout')
 
   if (loading) {
     return (
@@ -25,6 +26,7 @@ function AppShell() {
   return (
     <div className="bg-zinc-950">
       {tab === 'workout'   && <WorkoutScreen />}
+      {tab === 'wod'       && <WodScreen />}
       {tab === 'library'   && <LibraryScreen />}
       {tab === 'dashboard' && <DashboardScreen />}
       {tab === 'feed'      && <FeedScreen />}

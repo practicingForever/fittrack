@@ -4,10 +4,6 @@ import { useWorkout } from './useWorkout'
 import LogSetSheet from './LogSetSheet'
 import LogCardioSheet from './LogCardioSheet'
 import ExercisePicker from './ExercisePicker'
-import WodConfigSheet from '@/features/wod/WodConfigSheet'
-import WodTimerBar from '@/features/wod/WodTimerBar'
-import WodResultSheet from '@/features/wod/WodResultSheet'
-import { useWodTimer } from '@/features/wod/useWodTimer'
 import { useRestTimer } from './useRestTimer'
 import RestTimerBar from './RestTimerBar'
 import PlansScreen from './PlansScreen'
@@ -31,7 +27,6 @@ export default function WorkoutScreen() {
     workout, entries, elapsed,
     startWorkout, endWorkout, addExercise, logSet,
     cardioSets, logCardio,
-    activeWod, startWod, clearWod,
     timerStatus, startTimer, pauseTimer, resumeTimer,
   } = useWorkout()
 
@@ -39,8 +34,6 @@ export default function WorkoutScreen() {
   const [planTargets, setPlanTargets] = useState<Map<string, PlanExercise>>(new Map())
   const [pickerOpen, setPickerOpen] = useState(false)
   const [cardioSheetOpen, setCardioSheetOpen] = useState(false)
-  const [wodConfigOpen, setWodConfigOpen] = useState(false)
-  const [wodResultOpen, setWodResultOpen] = useState(false)
   const [logSheet, setLogSheet] = useState<{
     open: boolean
     exercise: Exercise | null
@@ -48,7 +41,6 @@ export default function WorkoutScreen() {
     ghost: StrengthSet | null
   }>({ open: false, exercise: null, setIndex: 1, ghost: null })
 
-  const { state: timerState, start: startWodTimer, stop: stopTimer, elapsedSeconds } = useWodTimer(activeWod)
   const { state: restState, start: startRest, skip: skipRest, setDuration: setRestDuration } = useRestTimer(90)
 
   const handleStartFromPlan = async (plan: WorkoutPlan, planExercises: PlanExercise[]) => {
@@ -94,29 +86,6 @@ export default function WorkoutScreen() {
   const handleEndWorkout = async () => {
     if (!confirm('Finish workout?')) return
     await endWorkout()
-  }
-
-  const handleWodDone = () => {
-    stopTimer()
-    if (activeWod && (activeWod.type === 'for_time' || activeWod.type === 'amrap')) {
-      setWodResultOpen(true)
-    } else {
-      clearWod()
-    }
-  }
-
-  const handleWodStop = () => {
-    stopTimer()
-    if (activeWod && timerState.phase === 'done' && (activeWod.type === 'for_time' || activeWod.type === 'amrap')) {
-      setWodResultOpen(true)
-    } else {
-      clearWod()
-    }
-  }
-
-  const handleWodResultClose = () => {
-    setWodResultOpen(false)
-    clearWod()
   }
 
   // No active workout
@@ -194,11 +163,6 @@ export default function WorkoutScreen() {
                 className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-yellow-400"
               >
                 Resume
-              </button>
-            )}
-            {timerStatus !== 'idle' && (
-              <button onClick={() => setWodConfigOpen(true)} className="rounded-xl bg-zinc-800 px-3 py-2.5 text-sm font-medium text-zinc-300">
-                WOD
               </button>
             )}
             <button
@@ -360,39 +324,11 @@ export default function WorkoutScreen() {
         onLog={logCardio}
       />
 
-      {/* WOD config sheet */}
-      <WodConfigSheet
-        open={wodConfigOpen}
-        onClose={() => setWodConfigOpen(false)}
-        onStart={async (input) => {
-          const wod = await startWod(input)
-          if (wod) startWodTimer()
-        }}
-      />
-
-      {/* WOD timer bar */}
-      <WodTimerBar
-        wod={activeWod}
-        timerState={timerState}
-        onDone={handleWodDone}
-        onStop={handleWodStop}
-      />
-
-      {/* WOD result sheet */}
-      {activeWod && (activeWod.type === 'for_time' || activeWod.type === 'amrap') && (
-        <WodResultSheet
-          open={wodResultOpen}
-          onClose={handleWodResultClose}
-          wod={activeWod}
-          elapsedSeconds={elapsedSeconds}
-        />
-      )}
-
       <RestTimerBar
         state={restState}
         onSkip={skipRest}
         onChangeDuration={(dur) => { setRestDuration(dur); void startRest(dur) }}
-        wodActive={activeWod !== null && timerState.phase !== 'idle' && timerState.phase !== 'done'}
+        wodActive={false}
       />
     </div>
   )
