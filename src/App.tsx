@@ -7,10 +7,11 @@ import WorkoutScreen from '@/features/workout/WorkoutScreen'
 import DashboardScreen from '@/features/dashboard/DashboardScreen'
 import FeedScreen from '@/features/feed/FeedScreen'
 import WodScreen from '@/features/wod/WodScreen'
+import SetNewPasswordScreen from '@/features/auth/SetNewPasswordScreen'
 
 
 function AppShell() {
-  const { user, loading } = useAuth()
+  const { user, loading, isPasswordRecovery } = useAuth()
   const [tab, setTab] = useState<NavTab>('workout')
 
   if (loading) {
@@ -20,6 +21,8 @@ function AppShell() {
       </div>
     )
   }
+
+  if (isPasswordRecovery) return <SetNewPasswordScreen />
 
   if (!user) return <AuthScreen />
 

@@ -10,6 +10,7 @@ interface AuthState {
   profile: Profile | null
   session: Session | null
   loading: boolean
+  isPasswordRecovery: boolean
 }
 
 interface AuthContextValue extends AuthState {
@@ -17,6 +18,8 @@ interface AuthContextValue extends AuthState {
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: string | null }>
+  updatePassword: (password: string) => Promise<{ error: string | null }>
+  isPasswordRecovery: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile: null,
     session: null,
     loading: true,
+    isPasswordRecovery: false,
   })
 
   useEffect(() => {
@@ -48,20 +52,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const profile = await fetchAndCacheProfile(session.user.id)
-        setState({ user: session.user, session, profile, loading: false })
+        setState({ user: session.user, session, profile, loading: false, isPasswordRecovery: false })
         cleanupSync = initSync()
       } else {
         setState(s => ({ ...s, loading: false }))
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setState(s => ({ ...s, isPasswordRecovery: true, loading: false }))
+        return
+      }
       if (session?.user) {
         const profile = await fetchAndCacheProfile(session.user.id)
-        setState({ user: session.user, session, profile, loading: false })
+        setState({ user: session.user, session, profile, loading: false, isPasswordRecovery: false })
         if (!cleanupSync) cleanupSync = initSync()
       } else {
-        setState({ user: null, session: null, profile: null, loading: false })
+        setState({ user: null, session: null, profile: null, loading: false, isPasswordRecovery: false })
         cleanupSync?.()
         cleanupSync = null
       }
@@ -98,8 +106,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (!error) setState(s => ({ ...s, isPasswordRecovery: false }))
+    return { error: error?.message ?? null }
+  }
+
   return (
-    <AuthContext.Provider value={{ ...state, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ ...state, signIn, signUp, signOut, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   )
