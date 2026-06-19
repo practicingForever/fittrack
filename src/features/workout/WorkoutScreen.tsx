@@ -8,6 +8,8 @@ import WodConfigSheet from '@/features/wod/WodConfigSheet'
 import WodTimerBar from '@/features/wod/WodTimerBar'
 import WodResultSheet from '@/features/wod/WodResultSheet'
 import { useWodTimer } from '@/features/wod/useWodTimer'
+import { useRestTimer } from './useRestTimer'
+import RestTimerBar from './RestTimerBar'
 import type { Exercise, StrengthSet } from '@/lib/types'
 import { getPreviousSet } from '@/lib/workouts'
 import { scoreLabel } from '@/lib/scoring'
@@ -41,6 +43,7 @@ export default function WorkoutScreen() {
   }>({ open: false, exercise: null, setIndex: 1, ghost: null })
 
   const { state: timerState, start: startTimer, stop: stopTimer, elapsedSeconds } = useWodTimer(activeWod)
+  const { state: restState, start: startRest, skip: skipRest, setDuration: setRestDuration } = useRestTimer(90)
 
   const openLogSheet = async (exercise: Exercise, currentSetCount: number) => {
     const setIndex = currentSetCount + 1
@@ -260,7 +263,11 @@ export default function WorkoutScreen() {
         exercise={logSheet.exercise}
         setIndex={logSheet.setIndex}
         ghost={logSheet.ghost}
-        onLog={logSet}
+        onLog={async (input) => {
+          const set = await logSet(input)
+          if (set) void startRest()
+          return set
+        }}
       />
 
       {/* Log cardio sheet */}
@@ -297,6 +304,13 @@ export default function WorkoutScreen() {
           elapsedSeconds={elapsedSeconds}
         />
       )}
+
+      <RestTimerBar
+        state={restState}
+        onSkip={skipRest}
+        onChangeDuration={(dur) => { setRestDuration(dur); void startRest(dur) }}
+        wodActive={activeWod !== null && timerState.phase !== 'idle' && timerState.phase !== 'done'}
+      />
     </div>
   )
 }
