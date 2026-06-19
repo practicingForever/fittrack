@@ -17,12 +17,13 @@ export function useLibrary() {
   const [loading, setLoading] = useState(true)
   const [seeded, setSeeded] = useState(false)
 
-  // Seed from Supabase first, then mark ready
+  // Seed from Supabase first, then mark ready.
+  // Always set seeded=true even on error so Dexie is queried with whatever data exists.
   useEffect(() => {
     if (!user) return
     seedLibrary()
-      .then(() => setSeeded(true))
       .catch(console.error)
+      .finally(() => setSeeded(true))
   }, [user])
 
   // Load muscle groups after seed completes
