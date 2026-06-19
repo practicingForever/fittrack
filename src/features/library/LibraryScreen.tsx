@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { useLibrary, type CategoryFilter, type LibraryFilter } from './useLibrary'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useLibrary, type LibraryFilter } from './useLibrary'
 import AddExerciseSheet from './AddExerciseSheet'
+import type { Exercise, MuscleGroup } from '@/lib/types'
 
-const CATEGORIES: { id: CategoryFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'strength', label: 'Strength' },
-  { id: 'running', label: 'Running' },
-  { id: 'rowing', label: 'Rowing' },
-]
+// Which muscle groups belong to each style
+const CROSSFIT_GROUPS = new Set(['Olympic lifts', 'Gymnastics', 'Conditioning'])
 
 const LIBRARY_TABS: { id: LibraryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -16,15 +13,118 @@ const LIBRARY_TABS: { id: LibraryFilter; label: string }[] = [
   { id: 'shared', label: 'Shared' },
 ]
 
+interface GroupedExercises {
+  style: string
+  groups: { group: MuscleGroup; exercises: Exercise[] }[]
+}
+
+function buildGroups(exercises: Exercise[], muscleGroups: MuscleGroup[]): GroupedExercises[] {
+  // Group exercises by muscle_group_id
+  const byGroup = new Map<string, Exercise[]>()
+  const ungrouped: Exercise[] = []
+
+  for (const ex of exercises) {
+    if (ex.muscle_group_id) {
+      const list = byGroup.get(ex.muscle_group_id) ?? []
+      list.push(ex)
+      byGroup.set(ex.muscle_group_id, list)
+    } else {
+      ungrouped.push(ex)
+    }
+  }
+
+  // Sort exercises within each group alphabetically
+  for (const list of byGroup.values()) {
+    list.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  const bbGroups: { group: MuscleGroup; exercises: Exercise[] }[] = []
+  const cfGroups: { group: MuscleGroup; exercises: Exercise[] }[] = []
+
+  // Sort muscle groups alphabetically within each style
+  const sortedGroups = [...muscleGroups].sort((a, b) => a.name.localeCompare(b.name))
+
+  for (const mg of sortedGroups) {
+    const exList = byGroup.get(mg.id)
+    if (!exList?.length) continue
+    const entry = { group: mg, exercises: exList }
+    if (CROSSFIT_GROUPS.has(mg.name)) {
+      cfGroups.push(entry)
+    } else {
+      bbGroups.push(entry)
+    }
+  }
+
+  const result: GroupedExercises[] = []
+  if (bbGroups.length) result.push({ style: 'Bodybuilding', groups: bbGroups })
+  if (cfGroups.length) result.push({ style: 'CrossFit', groups: cfGroups })
+
+  // Any ungrouped at the end
+  if (ungrouped.length) {
+    const fakeGroup: MuscleGroup = { id: '__ungrouped__', name: 'Other', is_preset: false, created_by: null, sort_order: 999, created_at: '' }
+    result.push({ style: 'Other', groups: [{ group: fakeGroup, exercises: ungrouped.sort((a, b) => a.name.localeCompare(b.name)) }] })
+  }
+
+  return result
+}
+
+function ExerciseRow({ ex }: { ex: Exercise }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 last:border-0">
+      <div>
+        <p className="text-sm font-medium text-zinc-100">{ex.name}</p>
+        {ex.is_unilateral && (
+          <p className="mt-0.5 text-xs text-zinc-600">Unilateral</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MuscleGroupSection({ group, exercises }: { group: MuscleGroup; exercises: Exercise[] }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="mb-2 rounded-2xl bg-zinc-900 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center justify-between px-4 py-3"
+      >
+        <p className="text-sm font-semibold text-zinc-300">{group.name}</p>
+        <span className="text-xs text-zinc-600">{open ? '▲' : `${exercises.length}`}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-t border-zinc-800"
+          >
+            {exercises.map(ex => <ExerciseRow key={ex.id} ex={ex} />)}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function LibraryScreen() {
   const {
     exercises, muscleGroups, loading,
-    query, setQuery, category, setCategory,
+    query, setQuery,
     library, setLibrary,
     addExercise, addMuscleGroup,
   } = useLibrary()
 
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  const isSearching = query.trim().length > 0
+  const grouped = buildGroups(exercises, muscleGroups)
+  const mgMap = new Map(muscleGroups.map(mg => [mg.id, mg]))
+
+  // Flat sorted list for search results
+  const flatResults = [...exercises].sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 pb-24">
@@ -49,24 +149,7 @@ export default function LibraryScreen() {
           className="mb-3 h-10 w-full rounded-xl bg-zinc-900 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-800 focus:ring-zinc-600"
         />
 
-        {/* Category filter */}
-        <div className="mb-2 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {CATEGORIES.map(c => (
-            <button
-              key={c.id}
-              onClick={() => setCategory(c.id)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                category === c.id
-                  ? 'bg-zinc-100 text-zinc-950'
-                  : 'bg-zinc-800 text-zinc-400'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Library tab */}
+        {/* All / Mine / Shared */}
         <div className="flex gap-1 rounded-xl bg-zinc-900 p-1">
           {LIBRARY_TABS.map(t => (
             <button
@@ -82,8 +165,8 @@ export default function LibraryScreen() {
         </div>
       </div>
 
-      {/* Exercise list */}
-      <div className="flex-1 px-4 pt-2">
+      {/* Content */}
+      <div className="flex-1 px-4 pt-3">
         {loading ? (
           <div className="flex justify-center pt-16">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
@@ -95,30 +178,35 @@ export default function LibraryScreen() {
               Add one
             </button>
           </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {exercises.map(ex => (
-              <motion.li
-                key={ex.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-100">{ex.name}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500 capitalize">
-                    {ex.category}{ex.is_unilateral ? ' · unilateral' : ''}
-                  </p>
+        ) : isSearching ? (
+          /* Flat list while searching */
+          <div className="rounded-2xl bg-zinc-900 overflow-hidden">
+            {flatResults.map(ex => {
+              const mg = ex.muscle_group_id ? mgMap.get(ex.muscle_group_id) : null
+              return (
+                <div key={ex.id} className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-100">{ex.name}</p>
+                    <p className="mt-0.5 text-xs text-zinc-600">
+                      {mg?.name ?? ex.category}{ex.is_unilateral ? ' · Unilateral' : ''}
+                    </p>
+                  </div>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                  ex.visibility === 'shared' ? 'bg-emerald-950 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
-                }`}>
-                  {ex.visibility}
-                </span>
-              </motion.li>
-            ))}
-          </ul>
+              )
+            })}
+          </div>
+        ) : (
+          /* Grouped view */
+          grouped.map(({ style, groups }) => (
+            <div key={style} className="mb-4">
+              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
+                {style}
+              </p>
+              {groups.map(({ group, exercises: exList }) => (
+                <MuscleGroupSection key={group.id} group={group} exercises={exList} />
+              ))}
+            </div>
+          ))
         )}
       </div>
 
