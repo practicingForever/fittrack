@@ -4,6 +4,7 @@ import AuthScreen from '@/features/auth/AuthScreen'
 import BottomNav, { type NavTab } from '@/components/BottomNav'
 import LibraryScreen from '@/features/library/LibraryScreen'
 import WorkoutScreen from '@/features/workout/WorkoutScreen'
+import DashboardScreen from '@/features/dashboard/DashboardScreen'
 
 function PlaceholderScreen({ label }: { label: string }) {
   return (
@@ -31,7 +32,7 @@ function AppShell() {
     <div className="bg-zinc-950">
       {tab === 'workout'   && <WorkoutScreen />}
       {tab === 'library'   && <LibraryScreen />}
-      {tab === 'dashboard' && <PlaceholderScreen label="Dashboard" />}
+      {tab === 'dashboard' && <DashboardScreen />}
       {tab === 'feed'      && <PlaceholderScreen label="Feed" />}
       <BottomNav active={tab} onChange={setTab} />
     </div>
