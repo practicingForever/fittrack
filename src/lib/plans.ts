@@ -68,3 +68,24 @@ export async function getPlanExercises(planId: string): Promise<PlanExercise[]> 
 export async function touchPlan(planId: string): Promise<void> {
   await db.workout_plans.update(planId, { updated_at: new Date().toISOString() })
 }
+
+export async function clonePlan(planId: string, newName: string): Promise<WorkoutPlan> {
+  const exercises = await getPlanExercises(planId)
+  const now = new Date().toISOString()
+  const newPlan: WorkoutPlan = {
+    id: crypto.randomUUID(),
+    name: newName,
+    created_at: now,
+    updated_at: now,
+  }
+  await db.workout_plans.put(newPlan)
+  for (const pe of exercises) {
+    const newPe: PlanExercise = {
+      ...pe,
+      id: crypto.randomUUID(),
+      plan_id: newPlan.id,
+    }
+    await db.plan_exercises.put(newPe)
+  }
+  return newPlan
+}

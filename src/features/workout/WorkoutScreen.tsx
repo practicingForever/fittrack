@@ -7,12 +7,15 @@ import ExercisePicker from './ExercisePicker'
 import { useRestTimer } from './useRestTimer'
 import RestTimerBar from './RestTimerBar'
 import PlansScreen from './PlansScreen'
+import EditSetSheet from './EditSetSheet'
+import WorkoutHistorySheet from './WorkoutHistorySheet'
 import { touchPlan } from '@/lib/plans'
 import { db } from '@/lib/db'
 import type { Exercise, StrengthSet, WorkoutPlan, PlanExercise } from '@/lib/types'
 import { getPreviousSet } from '@/lib/workouts'
 import { scoreLabel } from '@/lib/scoring'
 import { formatDuration as formatCarduroDuration } from '@/lib/cardio'
+import { useAuth } from '@/features/auth/AuthContext'
 
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -23,14 +26,18 @@ function formatElapsed(seconds: number): string {
 }
 
 export default function WorkoutScreen() {
+  const { user } = useAuth()
   const {
     workout, entries, elapsed,
     startWorkout, endWorkout, addExercise, logSet,
     cardioSets, logCardio,
     timerStatus, startTimer, pauseTimer, resumeTimer,
+    editSet, deleteSet,
   } = useWorkout()
 
   const [showPlans, setShowPlans] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [editSheet, setEditSheet] = useState<{ open: boolean; set: StrengthSet | null }>({ open: false, set: null })
   const [planTargets, setPlanTargets] = useState<Map<string, PlanExercise>>(new Map())
   const [pickerOpen, setPickerOpen] = useState(false)
   const [cardioSheetOpen, setCardioSheetOpen] = useState(false)
@@ -100,27 +107,42 @@ export default function WorkoutScreen() {
     }
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 pb-24">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-xs flex flex-col gap-3"
-        >
-          <h1 className="mb-2 text-center text-2xl font-semibold text-zinc-100">FitTrack</h1>
-          <button
-            onClick={startWorkout}
-            className="w-full rounded-2xl bg-zinc-100 py-4 text-base font-semibold text-zinc-950"
+      <>
+        <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 pb-24">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-xs flex flex-col gap-3"
           >
-            Start blank workout
-          </button>
-          <button
-            onClick={() => setShowPlans(true)}
-            className="w-full rounded-2xl bg-zinc-900 py-4 text-base font-semibold text-zinc-300"
-          >
-            Start from plan
-          </button>
-        </motion.div>
-      </div>
+            <h1 className="mb-2 text-center text-2xl font-semibold text-zinc-100">FitTrack</h1>
+            <button
+              onClick={startWorkout}
+              className="w-full rounded-2xl bg-zinc-100 py-4 text-base font-semibold text-zinc-950"
+            >
+              Start blank workout
+            </button>
+            <button
+              onClick={() => setShowPlans(true)}
+              className="w-full rounded-2xl bg-zinc-900 py-4 text-base font-semibold text-zinc-300"
+            >
+              Start from plan
+            </button>
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="w-full rounded-2xl py-3 text-sm text-zinc-600 hover:text-zinc-400"
+            >
+              View history
+            </button>
+          </motion.div>
+        </div>
+        {user && (
+          <WorkoutHistorySheet
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            userId={user.id}
+          />
+        )}
+      </>
     )
   }
 
@@ -216,7 +238,8 @@ export default function WorkoutScreen() {
                         key={set.id}
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 py-1.5 text-sm"
+                        className="flex items-center gap-2 py-1.5 text-sm cursor-pointer"
+                        onClick={() => setEditSheet({ open: true, set })}
                       >
                         <span className="w-6 text-center text-xs text-zinc-600">{set.set_index}</span>
                         <span className="flex-1 text-xs capitalize text-zinc-500">{set.type}</span>
@@ -322,6 +345,20 @@ export default function WorkoutScreen() {
         open={cardioSheetOpen}
         onClose={() => setCardioSheetOpen(false)}
         onLog={logCardio}
+      />
+
+      <EditSetSheet
+        open={editSheet.open}
+        onClose={() => setEditSheet(s => ({ ...s, open: false }))}
+        set={editSheet.set}
+        onSave={async (setId, updates) => {
+          if (!editSheet.set) return
+          await editSet(setId, editSheet.set.exercise_id, updates)
+        }}
+        onDelete={async (setId) => {
+          if (!editSheet.set) return
+          await deleteSet(setId, editSheet.set.exercise_id)
+        }}
       />
 
       <RestTimerBar

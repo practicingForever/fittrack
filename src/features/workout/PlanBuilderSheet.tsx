@@ -4,7 +4,7 @@ import BottomSheet from '@/components/BottomSheet'
 import ExercisePicker from './ExercisePicker'
 import {
   createPlan, updatePlanName, addExerciseToPlan,
-  updatePlanExercise, removeExerciseFromPlan, getPlanExercises,
+  updatePlanExercise, removeExerciseFromPlan, getPlanExercises, clonePlan,
 } from '@/lib/plans'
 import type { WorkoutPlan, PlanExercise, Exercise } from '@/lib/types'
 
@@ -24,6 +24,7 @@ export default function PlanBuilderSheet({
   const [exercises, setExercises] = useState<PlanExercise[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [cloning, setCloning] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -82,6 +83,20 @@ export default function PlanBuilderSheet({
   }
 
   const inputClass = 'h-10 w-full rounded-lg bg-zinc-800 px-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-700 focus:ring-zinc-500 text-center tabular-nums'
+
+  const handleClone = async () => {
+    if (!activePlan) return
+    const newName = prompt('Name for the new plan:', `${activePlan.name} (copy)`)
+    if (!newName?.trim()) return
+    setCloning(true)
+    try {
+      const cloned = await clonePlan(activePlan.id, newName.trim())
+      onPlanCreated(cloned)
+      onClose()
+    } finally {
+      setCloning(false)
+    }
+  }
 
   // suppress unused variable warning
   void saving
@@ -168,6 +183,15 @@ export default function PlanBuilderSheet({
           {activePlan && (
             <button onClick={onClose} className="h-12 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-950">
               Done
+            </button>
+          )}
+          {activePlan && (
+            <button
+              onClick={handleClone}
+              disabled={cloning}
+              className="h-12 rounded-xl bg-zinc-900 text-sm font-medium text-zinc-400 disabled:opacity-50"
+            >
+              {cloning ? 'Saving…' : 'Save as new plan'}
             </button>
           )}
         </div>

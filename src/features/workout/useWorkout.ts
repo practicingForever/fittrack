@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/features/auth/AuthContext'
 import {
   createWorkout, finishWorkout, logStrengthSet,
-  getSetsForExercise, getPreviousSet, type LogSetInput
+  getSetsForExercise, getPreviousSet, updateStrengthSet, deleteStrengthSet, type LogSetInput
 } from '@/lib/workouts'
 import { logCardioSet, type LogCardioInput } from '@/lib/cardio'
 import { createWod, type CreateWodInput } from '@/lib/wods'
-import type { Workout, StrengthSet, Exercise, CardioSet, Wod } from '@/lib/types'
+import type { Workout, StrengthSet, Exercise, CardioSet, Wod, SetType } from '@/lib/types'
 
 interface ExerciseEntry {
   exercise: Exercise
@@ -130,11 +130,35 @@ export function useWorkout() {
     setActiveWod(null)
   }, [])
 
+  const editSet = useCallback(async (
+    setId: string,
+    exerciseId: string,
+    updates: { weightKg?: number; reps?: number; type?: SetType }
+  ) => {
+    const updated = await updateStrengthSet(setId, updates)
+    setEntries(prev => prev.map(e =>
+      e.exercise.id === exerciseId
+        ? { ...e, sets: e.sets.map(s => s.id === setId ? updated : s) }
+        : e
+    ))
+    return updated
+  }, [])
+
+  const deleteSet = useCallback(async (setId: string, exerciseId: string) => {
+    await deleteStrengthSet(setId)
+    setEntries(prev => prev.map(e =>
+      e.exercise.id === exerciseId
+        ? { ...e, sets: e.sets.filter(s => s.id !== setId) }
+        : e
+    ))
+  }, [])
+
   return {
     workout, entries, elapsed,
     cardioSets, logCardio,
     activeWod, startWod, clearWod,
     startWorkout, endWorkout, addExercise, logSet, getGhostSet,
     timerStatus, startTimer, pauseTimer, resumeTimer,
+    editSet, deleteSet,
   }
 }
