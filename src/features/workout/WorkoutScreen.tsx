@@ -5,6 +5,7 @@ import LogSetSheet from './LogSetSheet'
 import ExercisePicker from './ExercisePicker'
 import type { Exercise, StrengthSet } from '@/lib/types'
 import { getPreviousSet } from '@/lib/workouts'
+import { scoreLabel } from '@/lib/scoring'
 
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -108,21 +109,34 @@ export default function WorkoutScreen() {
                     <span className="w-6 text-center">#</span>
                     <span className="flex-1">Type</span>
                     <span className="w-16 text-right">Weight</span>
-                    <span className="w-12 text-right">Reps</span>
+                    <span className="w-10 text-right">Reps</span>
+                    <span className="w-10 text-right">Score</span>
                   </div>
-                  {sets.map(set => (
-                    <motion.div
-                      key={set.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-2 py-1.5 text-sm"
-                    >
-                      <span className="w-6 text-center text-xs text-zinc-600">{set.set_index}</span>
-                      <span className="flex-1 text-xs capitalize text-zinc-500">{set.type}</span>
-                      <span className="w-16 text-right font-medium text-zinc-100">{set.weight_kg} kg</span>
-                      <span className="w-12 text-right text-zinc-300">{set.reps}</span>
-                    </motion.div>
-                  ))}
+                  {sets.map(set => {
+                    const { colorClass } = scoreLabel(set.effort_score ?? 50)
+                    return (
+                      <motion.div
+                        key={set.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-2 py-1.5 text-sm"
+                      >
+                        <span className="w-6 text-center text-xs text-zinc-600">{set.set_index}</span>
+                        <span className="flex-1 text-xs capitalize text-zinc-500">{set.type}</span>
+                        <span className="w-16 text-right font-medium text-zinc-100">{set.weight_kg} kg</span>
+                        <span className="w-10 text-right text-zinc-300">{set.reps}</span>
+                        <motion.span
+                          key={set.effort_score}
+                          initial={{ scale: 0.6, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', damping: 12, stiffness: 300 }}
+                          className={`w-10 text-right text-xs font-semibold tabular-nums ${colorClass}`}
+                        >
+                          {set.effort_score != null ? Math.round(set.effort_score) : '—'}
+                        </motion.span>
+                      </motion.div>
+                    )
+                  })}
                 </div>
               )}
 

@@ -1,6 +1,7 @@
 import { db } from './db'
 import { enqueueMutation } from './sync'
 import type { Workout, StrengthSet, SetType, SetSide } from './types'
+import { computeEffortScore } from './scoring'
 
 export async function createWorkout(userId: string, title = ''): Promise<Workout> {
   const now = new Date().toISOString()
@@ -41,6 +42,22 @@ export interface LogSetInput {
 }
 
 export async function logStrengthSet(input: LogSetInput): Promise<StrengthSet> {
+  // Fetch history for effort score
+  const historySets = await db.strength_sets
+    .where('[exercise_id+set_index]')
+    .equals([input.exerciseId, input.setIndex])
+    .filter(s => s.type !== 'warmup')
+    .toArray()
+
+  // Sort newest first, take last 10
+  historySets.sort((a, b) => b.logged_at.localeCompare(a.logged_at))
+  const history = historySets.slice(0, 10).map(s => ({
+    weight_kg: s.weight_kg,
+    reps: s.reps,
+  }))
+
+  const { score } = computeEffortScore(input.weightKg, input.reps, input.type, history)
+
   const now = new Date().toISOString()
   const set: StrengthSet = {
     id: crypto.randomUUID(),
@@ -52,7 +69,7 @@ export async function logStrengthSet(input: LogSetInput): Promise<StrengthSet> {
     reps: input.reps,
     side: input.side,
     type: input.type,
-    effort_score: null,
+    effort_score: score,
     logged_at: now,
     updated_at: now,
   }
