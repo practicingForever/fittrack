@@ -46,6 +46,11 @@ export interface Exercise {
   updated_at: string
 }
 
+export interface ExerciseMuscleGroup {
+  exercise_id: string
+  muscle_group_id: string
+}
+
 export interface Workout {
   id: string
   user_id: string

@@ -15,29 +15,35 @@ export function useLibrary() {
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [library, setLibrary] = useState<LibraryFilter>('all')
   const [loading, setLoading] = useState(true)
+  const [seeded, setSeeded] = useState(false)
 
-  // Seed from Supabase on mount
+  // Seed from Supabase first, then mark ready
   useEffect(() => {
     if (!user) return
-    seedLibrary().catch(console.error)
+    seedLibrary()
+      .then(() => setSeeded(true))
+      .catch(console.error)
   }, [user])
 
-  // Load muscle groups
+  // Load muscle groups after seed completes
   useEffect(() => {
+    if (!seeded) return
     db.muscle_groups.orderBy('sort_order').toArray().then(setMuscleGroups)
-  }, [])
+  }, [seeded])
 
-  // Reactive search
+  // Reactive search — only after seed completes
   useEffect(() => {
-    if (!user) return
+    if (!user || !seeded) return
     searchExercises({ query, category, library, userId: user.id })
       .then(results => { setExercises(results); setLoading(false) })
-  }, [query, category, library, user])
+  }, [query, category, library, user, seeded])
 
   const addExercise = useCallback(async (input: Omit<CreateExerciseInput, 'userId'>) => {
     if (!user) return
     const ex = await createExercise({ ...input, userId: user.id })
     setExercises(prev => [ex, ...prev])
+    // Reload muscle groups in case junction table has new rows
+    db.muscle_groups.orderBy('sort_order').toArray().then(setMuscleGroups)
   }, [user])
 
   const addMuscleGroup = useCallback(async (name: string) => {

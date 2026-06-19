@@ -14,7 +14,7 @@ interface AddExerciseSheetProps {
 export default function AddExerciseSheet({ open, onClose, muscleGroups, onAdd, onAddMuscleGroup }: AddExerciseSheetProps) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState<ExerciseCat>('strength')
-  const [muscleGroupId, setMuscleGroupId] = useState<string | null>(null)
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([])
   const [isUnilateral, setIsUnilateral] = useState(false)
   const [visibility, setVisibility] = useState<ExerciseVisibility>('private')
   const [newGroupName, setNewGroupName] = useState('')
@@ -23,16 +23,27 @@ export default function AddExerciseSheet({ open, onClose, muscleGroups, onAdd, o
   const [error, setError] = useState<string | null>(null)
 
   const reset = () => {
-    setName(''); setCategory('strength'); setMuscleGroupId(null)
+    setName(''); setCategory('strength'); setSelectedGroupIds([])
     setIsUnilateral(false); setVisibility('private'); setError(null)
+    setNewGroupName(''); setAddingGroup(false)
   }
 
   const handleClose = () => { reset(); onClose() }
 
+  const toggleGroup = (id: string) => {
+    setSelectedGroupIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
   const handleAddGroup = async () => {
     if (!newGroupName.trim()) return
     const mg = await onAddMuscleGroup(newGroupName.trim())
-    if (mg) { setMuscleGroupId(mg.id); setNewGroupName(''); setAddingGroup(false) }
+    if (mg) {
+      setSelectedGroupIds(prev => [...prev, mg.id])
+      setNewGroupName('')
+      setAddingGroup(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +51,7 @@ export default function AddExerciseSheet({ open, onClose, muscleGroups, onAdd, o
     if (!name.trim()) { setError('Name is required'); return }
     setLoading(true)
     try {
-      await onAdd({ name, category, muscleGroupId, isUnilateral, visibility })
+      await onAdd({ name, category, muscleGroupIds: selectedGroupIds, isUnilateral, visibility })
       handleClose()
     } catch {
       setError('Failed to save. Try again.')
@@ -75,19 +86,41 @@ export default function AddExerciseSheet({ open, onClose, muscleGroups, onAdd, o
           </div>
         </div>
 
-        {/* Muscle group */}
+        {/* Muscle groups — multi-select */}
         <div>
-          <p className="mb-2 text-xs text-zinc-500">Muscle group</p>
-          <select
-            value={muscleGroupId ?? ''}
-            onChange={e => setMuscleGroupId(e.target.value || null)}
-            className="h-12 w-full rounded-xl bg-zinc-800 px-4 text-sm text-zinc-100 outline-none ring-1 ring-zinc-700"
-          >
-            <option value="">None</option>
-            {muscleGroups.map(mg => (
-              <option key={mg.id} value={mg.id}>{mg.name}</option>
-            ))}
-          </select>
+          <p className="mb-2 text-xs text-zinc-500">
+            Muscle groups
+            {selectedGroupIds.length > 0 && (
+              <span className="ml-1 text-zinc-400">({selectedGroupIds.length} selected)</span>
+            )}
+          </p>
+          {muscleGroups.length === 0 ? (
+            <p className="text-xs text-zinc-600">Loading…</p>
+          ) : (
+            <div className="max-h-44 overflow-y-auto rounded-xl bg-zinc-800 divide-y divide-zinc-700/50">
+              {muscleGroups.map(mg => {
+                const checked = selectedGroupIds.includes(mg.id)
+                const isPrimary = selectedGroupIds[0] === mg.id
+                return (
+                  <label
+                    key={mg.id}
+                    className="flex cursor-pointer items-center gap-3 px-4 py-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleGroup(mg.id)}
+                      className="h-4 w-4 rounded accent-zinc-400 flex-shrink-0"
+                    />
+                    <span className="flex-1 text-sm text-zinc-200">{mg.name}</span>
+                    {isPrimary && (
+                      <span className="text-xs text-zinc-500">Primary</span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
           {!addingGroup ? (
             <button type="button" onClick={() => setAddingGroup(true)} className="mt-2 text-xs text-zinc-500 hover:text-zinc-300">
               + Add muscle group
