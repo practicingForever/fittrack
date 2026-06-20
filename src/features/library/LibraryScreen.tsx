@@ -84,14 +84,21 @@ function ExerciseRow({ ex }: { ex: Exercise }) {
 function MuscleGroupSection({ group, exercises }: { group: MuscleGroup; exercises: Exercise[] }) {
   const [open, setOpen] = useState(true)
   return (
-    <div className="mb-2 rounded-2xl bg-zinc-900 overflow-hidden">
+    <div className="mb-2 overflow-hidden rounded-2xl">
+      {/* Header — distinct background + accent bar */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between px-4 py-3"
+        className="flex w-full items-center justify-between bg-zinc-800 px-4 py-3"
       >
-        <p className="text-sm font-semibold text-zinc-300">{group.name}</p>
-        <span className="text-xs text-zinc-600">{open ? '▲' : `${exercises.length}`}</span>
+        <div className="flex items-center gap-2">
+          <span className="h-4 w-1 rounded-full bg-zinc-500" />
+          <p className="text-sm font-bold uppercase tracking-wide text-zinc-200">{group.name}</p>
+        </div>
+        <span className="text-xs text-zinc-500">
+          {open ? '▲' : `${exercises.length} exercises`}
+        </span>
       </button>
+      {/* Exercises — darker bg to contrast with header */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -99,7 +106,7 @@ function MuscleGroupSection({ group, exercises }: { group: MuscleGroup; exercise
             animate={{ height: 'auto' }}
             exit={{ height: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden border-t border-zinc-800"
+            className="overflow-hidden bg-zinc-900"
           >
             {exercises.map(ex => <ExerciseRow key={ex.id} ex={ex} />)}
           </motion.div>
