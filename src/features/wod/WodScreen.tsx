@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWodTimer } from './useWodTimer'
 import { formatDuration } from '@/lib/cardio'
+import { isMuted, setMuted } from '@/lib/wodAudio'
 import type { Wod, WodType } from '@/lib/types'
 
 const WOD_TYPES: { id: WodType; label: string; description: string }[] = [
@@ -66,8 +67,15 @@ export default function WodScreen() {
   const [resultRounds, setResultRounds] = useState('')
 
   const [activeWod, setActiveWod] = useState<Wod | null>(null)
+  const [muted, setMutedState] = useState(isMuted)
 
   const { state: timerState, start, stop, elapsedSeconds } = useWodTimer(activeWod)
+
+  const toggleMute = () => {
+    const next = !muted
+    setMuted(next)
+    setMutedState(next)
+  }
 
   const handleStart = useCallback(() => {
     const wod = makeWod(type, title, { totalMin, intervalSec, rounds, workSec, restSec, tabataRounds })
@@ -217,7 +225,7 @@ export default function WodScreen() {
               <p className="text-sm text-slate-400">{activeWod.title}</p>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
               {activeWod.type === 'for_time' && (
                 <button
                   onClick={handleDone}
@@ -231,6 +239,13 @@ export default function WodScreen() {
                 className="rounded-xl bg-slate-200 px-6 py-3 text-sm font-semibold text-slate-600"
               >
                 Stop
+              </button>
+              <button
+                onClick={toggleMute}
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-lg"
+                title={muted ? 'Unmute' : 'Mute'}
+              >
+                {muted ? '🔇' : '🔊'}
               </button>
             </div>
           </motion.div>
