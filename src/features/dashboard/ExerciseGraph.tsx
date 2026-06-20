@@ -31,49 +31,52 @@ export default function ExerciseGraph() {
   }, [selected, user])
 
   const tooltipStyle = {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
+    backgroundColor: '#fff',
+    border: '1px solid #e2e8f0',
     borderRadius: 8,
     fontSize: 12,
-    color: '#e4e4e7',
+    color: '#1e293b',
+    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
   }
 
   return (
-    <div>
-      <h2 className="mb-3 text-base font-semibold text-zinc-100">Exercise progress</h2>
+    <div className="rounded-2xl bg-white border border-slate-100 p-4">
+      <h2 className="mb-4 text-sm font-bold text-slate-900">Exercise progress</h2>
 
       {!selected ? (
         <div>
-          <input
-            type="search"
-            placeholder="Search exercise…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="mb-2 h-11 w-full rounded-xl bg-zinc-900 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-800 focus:ring-zinc-600"
-          />
+          <div className="relative mb-2">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Search exercise…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="h-9 w-full rounded-xl bg-slate-100 pl-8 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none"
+            />
+          </div>
           {results.map(ex => (
             <button
               key={ex.id}
               onClick={() => { setSelected(ex); setQuery('') }}
-              className="flex w-full items-center gap-3 border-b border-zinc-900 py-3 text-left"
+              className="flex w-full items-center gap-3 border-b border-slate-100 py-3 text-left last:border-0"
             >
-              <div>
-                <p className="text-sm text-zinc-100">{ex.name}</p>
-                <p className="text-xs capitalize text-zinc-500">{ex.category}</p>
-              </div>
+              <p className="text-sm text-slate-800">{ex.name}</p>
             </button>
           ))}
           {query && results.length === 0 && (
-            <p className="py-6 text-center text-xs text-zinc-600">No exercises found</p>
+            <p className="py-6 text-center text-xs text-slate-400">No exercises found</p>
           )}
         </div>
       ) : (
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <p className="font-medium text-zinc-100">{selected.name}</p>
+            <p className="font-semibold text-slate-900">{selected.name}</p>
             <button
               onClick={() => { setSelected(null); setData([]) }}
-              className="text-xs text-zinc-500 hover:text-zinc-300"
+              className="text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               Change
             </button>
@@ -81,30 +84,30 @@ export default function ExerciseGraph() {
 
           {loading && (
             <div className="flex justify-center py-8">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500" />
             </div>
           )}
 
           {!loading && data.length === 0 && (
-            <p className="py-6 text-center text-xs text-zinc-600">No data yet — log some sets first</p>
+            <p className="py-6 text-center text-xs text-slate-400">No data yet — log some sets first</p>
           )}
 
           {!loading && data.length > 0 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="mb-2 text-xs text-zinc-500">Max weight (kg)</p>
+                <p className="mb-2 text-xs font-medium text-slate-500">Max weight (kg)</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Line
                       type="monotone"
                       dataKey="maxWeight"
-                      stroke="#a1a1aa"
+                      stroke="#2563eb"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: '#a1a1aa' }}
+                      dot={{ r: 3, fill: '#2563eb' }}
                       activeDot={{ r: 5 }}
                       name="Max weight"
                     />
@@ -113,12 +116,12 @@ export default function ExerciseGraph() {
               </div>
 
               <div>
-                <p className="mb-2 text-xs text-zinc-500">Effort score</p>
+                <p className="mb-2 text-xs font-medium text-slate-500">Effort score</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={(v: unknown) => [v as number, 'Effort']}
@@ -126,9 +129,9 @@ export default function ExerciseGraph() {
                     <Line
                       type="monotone"
                       dataKey="effortScore"
-                      stroke="#34d399"
+                      stroke="#16a34a"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: '#34d399' }}
+                      dot={{ r: 3, fill: '#16a34a' }}
                       activeDot={{ r: 5 }}
                       name="Effort"
                     />

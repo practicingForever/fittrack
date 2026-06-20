@@ -22,11 +22,12 @@ export default function CardioTrend() {
   }, [user, mode])
 
   const tooltipStyle = {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
+    backgroundColor: '#fff',
+    border: '1px solid #e2e8f0',
     borderRadius: 8,
     fontSize: 12,
-    color: '#e4e4e7',
+    color: '#1e293b',
+    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
   }
 
   const paceLabel = mode === 'running' ? '/km' : '/500m'
@@ -35,33 +36,42 @@ export default function CardioTrend() {
   const minPace = paceValues.length ? Math.min(...paceValues) * 0.97 : 0
   const maxPace = paceValues.length ? Math.max(...paceValues) * 1.03 : 600
 
-  const segClass = (active: boolean) =>
-    `flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${active ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500'}`
-
   return (
-    <div>
-      <h2 className="mb-3 text-base font-semibold text-zinc-100">Cardio pace</h2>
+    <div className="rounded-2xl bg-white border border-slate-100 p-4">
+      <h2 className="mb-4 text-sm font-bold text-slate-900">Cardio pace</h2>
 
-      <div className="mb-4 flex gap-1 rounded-xl bg-zinc-800 p-1">
-        <button className={segClass(mode === 'running')} onClick={() => setMode('running')}>Running</button>
-        <button className={segClass(mode === 'rowing')} onClick={() => setMode('rowing')}>Rowing</button>
+      <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1">
+        {(['running', 'rowing'] as Mode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className="flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors capitalize"
+            style={{
+              background: mode === m ? '#fff' : 'transparent',
+              color: mode === m ? '#1e3a8a' : '#94a3b8',
+              boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
+            }}
+          >
+            {m}
+          </button>
+        ))}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-6">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500" />
         </div>
       ) : data.length === 0 ? (
-        <p className="py-6 text-center text-xs text-zinc-600">No {mode} data yet</p>
+        <p className="py-6 text-center text-xs text-slate-400">No {mode} data yet</p>
       ) : (
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
             <YAxis
               domain={[minPace, maxPace]}
               reversed
-              tick={{ fontSize: 10, fill: '#71717a' }}
+              tick={{ fontSize: 10, fill: '#94a3b8' }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v: number) => fmtPace(v)}
@@ -73,9 +83,9 @@ export default function CardioTrend() {
             <Line
               type="monotone"
               dataKey="pace"
-              stroke="#60a5fa"
+              stroke="#2563eb"
               strokeWidth={2}
-              dot={{ r: 3, fill: '#60a5fa' }}
+              dot={{ r: 3, fill: '#2563eb' }}
               activeDot={{ r: 5 }}
               name="Pace"
             />

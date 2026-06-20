@@ -3,23 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/features/auth/AuthContext'
 import { getStreakData, getContributionData, type StreakData, type ContributionDay } from '@/lib/streak'
 
-// Color for a day cell
 function cellColor(count: number): string {
-  if (count === 0) return 'bg-zinc-900'
-  if (count === 1) return 'bg-zinc-600'
-  if (count === 2) return 'bg-zinc-400'
-  return 'bg-zinc-100'
+  if (count === 0) return '#f1f5f9'
+  if (count === 1) return '#93c5fd'
+  if (count === 2) return '#3b82f6'
+  return '#1d4ed8'
 }
 
-// Group 112 days into 16 columns of 7 (Mon-Sun)
-// days[0] is the oldest. We want a grid where each column is a week.
-// Pad the first column so day 0 aligns with the correct weekday.
 function buildGrid(days: ContributionDay[]): (ContributionDay | null)[][] {
-  // days[0].date is the start; find its weekday (0=Sun..6=Sat → 0=Mon..6=Sun)
   const [y, m, d] = days[0].date.split('-').map(Number)
   const startDate = new Date(y, m - 1, d)
-  const startDow = startDate.getDay() // 0=Sun
-  // Convert to Mon-based: Mon=0 .. Sun=6
+  const startDow = startDate.getDay()
   const offset = (startDow + 6) % 7
 
   const padded: (ContributionDay | null)[] = [
@@ -27,7 +21,6 @@ function buildGrid(days: ContributionDay[]): (ContributionDay | null)[][] {
     ...days,
   ]
 
-  // Chunk into columns of 7
   const cols: (ContributionDay | null)[][] = []
   for (let i = 0; i < padded.length; i += 7) {
     cols.push(padded.slice(i, i + 7))
@@ -35,7 +28,6 @@ function buildGrid(days: ContributionDay[]): (ContributionDay | null)[][] {
   return cols
 }
 
-// Month label for a column (first day of the column that is the 1st of its month, or new month)
 function monthLabel(col: (ContributionDay | null)[]): string | null {
   for (const day of col) {
     if (!day) continue
@@ -64,17 +56,17 @@ export default function StreakCard() {
   const grid = days.length ? buildGrid(days) : []
 
   return (
-    <div>
+    <div className="rounded-2xl bg-white border border-slate-100 p-4">
       {/* Streak stats row */}
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex gap-3">
         {[
           { label: 'Current streak', value: streak?.current ?? 0, unit: 'days' },
           { label: 'Longest streak', value: streak?.longest ?? 0, unit: 'days' },
           { label: 'Total workouts', value: streak?.totalWorkouts ?? 0, unit: '' },
         ].map(stat => (
-          <div key={stat.label} className="flex-1 rounded-xl bg-zinc-900 px-3 py-3 text-center">
-            <p className="text-2xl font-bold text-zinc-100">{stat.value}</p>
-            <p className="mt-0.5 text-[10px] text-zinc-500">{stat.label}</p>
+          <div key={stat.label} className="flex-1 rounded-xl bg-slate-50 border border-slate-100 px-3 py-3 text-center">
+            <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+            <p className="mt-0.5 text-[10px] text-slate-400">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -82,19 +74,17 @@ export default function StreakCard() {
       {/* Contribution grid */}
       <div className="overflow-x-auto">
         <div className="min-w-max">
-          {/* Month labels */}
           <div className="mb-1 flex gap-1">
             {grid.map((col, ci) => {
               const label = monthLabel(col)
               return (
-                <div key={ci} className="w-3 text-[8px] text-zinc-600">
+                <div key={ci} className="w-3 text-[8px] text-slate-400">
                   {label ?? ''}
                 </div>
               )
             })}
           </div>
 
-          {/* Day grid (7 rows = Mon-Sun) */}
           <div className="flex gap-1">
             {grid.map((col, ci) => (
               <div key={ci} className="flex flex-col gap-1">
@@ -110,7 +100,8 @@ export default function StreakCard() {
                             : { day, x: rect.left, y: rect.top }
                         )
                       }}
-                      className={`h-3 w-3 rounded-sm transition-opacity hover:opacity-75 ${cellColor(day.count)}`}
+                      className="h-3 w-3 rounded-sm transition-opacity hover:opacity-75"
+                      style={{ background: cellColor(day.count) }}
                     />
                   ) : (
                     <div key={`pad-${ci}-${ri}`} className="h-3 w-3" />
@@ -122,14 +113,13 @@ export default function StreakCard() {
         </div>
       </div>
 
-      {/* Tooltip */}
       <AnimatePresence>
         {tooltip && (
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mt-2 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300"
+            className="mt-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600"
             onClick={() => setTooltip(null)}
           >
             {tooltip.day.label} · {tooltip.day.count === 0 ? 'No workout' : `${tooltip.day.count} workout${tooltip.day.count > 1 ? 's' : ''}`}

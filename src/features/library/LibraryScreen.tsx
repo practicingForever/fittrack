@@ -1,117 +1,33 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useLibrary, type LibraryFilter } from './useLibrary'
+import { useLibrary } from './useLibrary'
 import AddExerciseSheet from './AddExerciseSheet'
+import { getMuscleColor } from '@/lib/muscleColors'
 import type { Exercise, MuscleGroup } from '@/lib/types'
 
-// Which muscle groups belong to each style
 const CROSSFIT_GROUPS = new Set(['Olympic lifts', 'Gymnastics', 'Conditioning'])
 
-const LIBRARY_TABS: { id: LibraryFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'mine', label: 'Mine' },
-  { id: 'shared', label: 'Shared' },
+type StyleFilter = 'all' | 'lifting' | 'crossfit'
+
+const STYLE_TABS: { id: StyleFilter; label: string }[] = [
+  { id: 'all',      label: 'All' },
+  { id: 'lifting',  label: 'Lifting' },
+  { id: 'crossfit', label: 'CrossFit' },
 ]
 
-interface GroupedExercises {
-  style: string
-  groups: { group: MuscleGroup; exercises: Exercise[] }[]
-}
-
-function buildGroups(exercises: Exercise[], muscleGroups: MuscleGroup[]): GroupedExercises[] {
-  // Group exercises by muscle_group_id
-  const byGroup = new Map<string, Exercise[]>()
-  const ungrouped: Exercise[] = []
-
-  for (const ex of exercises) {
-    if (ex.muscle_group_id) {
-      const list = byGroup.get(ex.muscle_group_id) ?? []
-      list.push(ex)
-      byGroup.set(ex.muscle_group_id, list)
-    } else {
-      ungrouped.push(ex)
-    }
-  }
-
-  // Sort exercises within each group alphabetically
-  for (const list of byGroup.values()) {
-    list.sort((a, b) => a.name.localeCompare(b.name))
-  }
-
-  const bbGroups: { group: MuscleGroup; exercises: Exercise[] }[] = []
-  const cfGroups: { group: MuscleGroup; exercises: Exercise[] }[] = []
-
-  // Sort muscle groups alphabetically within each style
-  const sortedGroups = [...muscleGroups].sort((a, b) => a.name.localeCompare(b.name))
-
-  for (const mg of sortedGroups) {
-    const exList = byGroup.get(mg.id)
-    if (!exList?.length) continue
-    const entry = { group: mg, exercises: exList }
-    if (CROSSFIT_GROUPS.has(mg.name)) {
-      cfGroups.push(entry)
-    } else {
-      bbGroups.push(entry)
-    }
-  }
-
-  const result: GroupedExercises[] = []
-  if (bbGroups.length) result.push({ style: 'Bodybuilding', groups: bbGroups })
-  if (cfGroups.length) result.push({ style: 'CrossFit', groups: cfGroups })
-
-  // Any ungrouped at the end
-  if (ungrouped.length) {
-    const fakeGroup: MuscleGroup = { id: '__ungrouped__', name: 'Other', is_preset: false, created_by: null, sort_order: 999, created_at: '' }
-    result.push({ style: 'Other', groups: [{ group: fakeGroup, exercises: ungrouped.sort((a, b) => a.name.localeCompare(b.name)) }] })
-  }
-
-  return result
-}
-
-function ExerciseRow({ ex }: { ex: Exercise }) {
+function ExerciseRow({ ex, groupName }: { ex: Exercise; groupName?: string }) {
+  const color = groupName ? getMuscleColor(groupName) : null
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 last:border-0">
-      <div>
-        <p className="text-sm font-medium text-zinc-100">{ex.name}</p>
-        {ex.is_unilateral && (
-          <p className="mt-0.5 text-xs text-zinc-600">Unilateral</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function MuscleGroupSection({ group, exercises }: { group: MuscleGroup; exercises: Exercise[] }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="mb-2 overflow-hidden rounded-2xl">
-      {/* Header — distinct background + accent bar */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between bg-zinc-800 px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <span className="h-4 w-1 rounded-full bg-zinc-500" />
-          <p className="text-sm font-bold uppercase tracking-wide text-zinc-200">{group.name}</p>
-        </div>
-        <span className="text-xs text-zinc-500">
-          {open ? '▲' : `${exercises.length} exercises`}
+    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-0">
+      <span className="text-sm text-slate-800">{ex.name}</span>
+      {ex.is_unilateral && (
+        <span
+          className="ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
+          style={color ? { background: color.bg, color: color.text } : { background: '#f1f5f9', color: '#334155' }}
+        >
+          L/R
         </span>
-      </button>
-      {/* Exercises — darker bg to contrast with header */}
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden bg-zinc-900"
-          >
-            {exercises.map(ex => <ExerciseRow key={ex.id} ex={ex} />)}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      )}
     </div>
   )
 }
@@ -120,101 +36,209 @@ export default function LibraryScreen() {
   const {
     exercises, muscleGroups, loading,
     query, setQuery,
-    library, setLibrary,
     addExercise, addMuscleGroup,
   } = useLibrary()
 
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [styleFilter, setStyleFilter] = useState<StyleFilter>('all')
+  const [groupFilter, setGroupFilter] = useState<string>('all')
 
-  const isSearching = query.trim().length > 0
-  const grouped = buildGroups(exercises, muscleGroups)
-  const mgMap = new Map(muscleGroups.map(mg => [mg.id, mg]))
+  // Reset group filter when style changes
+  const handleStyleChange = (s: StyleFilter) => {
+    setStyleFilter(s)
+    setGroupFilter('all')
+  }
 
-  // Flat sorted list for search results
-  const flatResults = [...exercises].sort((a, b) => a.name.localeCompare(b.name))
+  // Muscle groups visible for the current style tab
+  const visibleGroups = useMemo(() => {
+    return muscleGroups.filter(mg => {
+      if (styleFilter === 'all') return true
+      if (styleFilter === 'crossfit') return CROSSFIT_GROUPS.has(mg.name)
+      return !CROSSFIT_GROUPS.has(mg.name)
+    })
+  }, [muscleGroups, styleFilter])
+
+  // Filtered exercises
+  const filteredExercises = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    return exercises.filter(ex => {
+      if (q && !ex.name.toLowerCase().includes(q)) return false
+      if (styleFilter !== 'all') {
+        const mg = muscleGroups.find(m => m.id === ex.muscle_group_id)
+        if (!mg) return false
+        const isCF = CROSSFIT_GROUPS.has(mg.name)
+        if (styleFilter === 'crossfit' && !isCF) return false
+        if (styleFilter === 'lifting' && isCF) return false
+      }
+      if (groupFilter !== 'all' && ex.muscle_group_id !== groupFilter) return false
+      return true
+    })
+  }, [exercises, muscleGroups, query, styleFilter, groupFilter])
+
+  // Group exercises by muscle group for the grouped view
+  const groupedRows = useMemo(() => {
+    if (query.trim()) return null // flat list when searching
+    const map = new Map<string, { group: MuscleGroup; exercises: Exercise[] }>()
+    for (const mg of visibleGroups) {
+      map.set(mg.id, { group: mg, exercises: [] })
+    }
+    for (const ex of filteredExercises) {
+      if (ex.muscle_group_id && map.has(ex.muscle_group_id)) {
+        map.get(ex.muscle_group_id)!.exercises.push(ex)
+      }
+    }
+    return [...map.values()]
+      .filter(({ exercises }) => exercises.length > 0)
+      .map(({ group, exercises }) => ({
+        group,
+        exercises: exercises.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.group.name.localeCompare(b.group.name))
+  }, [filteredExercises, visibleGroups, query])
+
+  const mgMap = useMemo(() => new Map(muscleGroups.map(m => [m.id, m])), [muscleGroups])
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 pb-24">
+    <div className="flex min-h-screen flex-col bg-slate-50 pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-zinc-950/90 px-4 pt-12 pb-3 backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-zinc-100">Library</h1>
+      <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 pt-12 pb-0">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-slate-900">Library</h1>
           <button
             onClick={() => setSheetOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-lg text-zinc-100"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white text-lg font-medium"
+            style={{ background: '#2563eb' }}
           >
             +
           </button>
         </div>
 
         {/* Search */}
-        <input
-          type="search"
-          placeholder="Search exercises…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          className="mb-3 h-10 w-full rounded-xl bg-zinc-900 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-800 focus:ring-zinc-600"
-        />
+        <div className="relative mb-3">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search exercises…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            className="h-9 w-full rounded-xl bg-slate-100 pl-8 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none"
+          />
+        </div>
 
-        {/* All / Mine / Shared */}
-        <div className="flex gap-1 rounded-xl bg-zinc-900 p-1">
-          {LIBRARY_TABS.map(t => (
+        {/* Style segmented control */}
+        <div className="flex rounded-xl bg-slate-100 p-1 gap-1 mb-0">
+          {STYLE_TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => setLibrary(t.id)}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-                library === t.id ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
-              }`}
+              onClick={() => handleStyleChange(t.id)}
+              className="relative flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors"
+              style={{
+                background: styleFilter === t.id ? '#fff' : 'transparent',
+                color: styleFilter === t.id ? '#1e3a8a' : '#94a3b8',
+                boxShadow: styleFilter === t.id ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
+              }}
             >
               {t.label}
             </button>
           ))}
         </div>
+
+        {/* Muscle group pill row — slides in when style is not 'all' */}
+        <AnimatePresence initial={false}>
+          {styleFilter !== 'all' && visibleGroups.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="overflow-hidden"
+            >
+              <div className="flex gap-2 overflow-x-auto py-2 scrollbar-none">
+                <button
+                  onClick={() => setGroupFilter('all')}
+                  className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+                  style={{
+                    background: groupFilter === 'all' ? '#1e293b' : '#f1f5f9',
+                    color: groupFilter === 'all' ? '#fff' : '#64748b',
+                  }}
+                >
+                  All
+                </button>
+                {visibleGroups.map(mg => {
+                  const col = getMuscleColor(mg.name)
+                  const active = groupFilter === mg.id
+                  return (
+                    <button
+                      key={mg.id}
+                      onClick={() => setGroupFilter(active ? 'all' : mg.id)}
+                      className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-all"
+                      style={{
+                        background: active ? col.bar : col.bg,
+                        color: active ? '#fff' : col.text,
+                      }}
+                    >
+                      {mg.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-4 pt-3">
+      <div className="flex-1 px-4 pt-4">
         {loading ? (
           <div className="flex justify-center pt-16">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
           </div>
-        ) : exercises.length === 0 ? (
+        ) : filteredExercises.length === 0 ? (
           <div className="flex flex-col items-center pt-16 text-center">
-            <p className="text-sm text-zinc-500">No exercises found</p>
-            <button onClick={() => setSheetOpen(true)} className="mt-3 text-sm text-zinc-400 underline">
+            <p className="text-sm text-slate-400">No exercises found</p>
+            <button onClick={() => setSheetOpen(true)} className="mt-3 text-sm font-medium" style={{ color: '#2563eb' }}>
               Add one
             </button>
           </div>
-        ) : isSearching ? (
-          /* Flat list while searching */
-          <div className="rounded-2xl bg-zinc-900 overflow-hidden">
-            {flatResults.map(ex => {
+        ) : query.trim() ? (
+          /* Flat search results */
+          <div className="overflow-hidden rounded-2xl bg-white border border-slate-100">
+            {filteredExercises.map(ex => {
               const mg = ex.muscle_group_id ? mgMap.get(ex.muscle_group_id) : null
+              const col = mg ? getMuscleColor(mg.name) : null
               return (
-                <div key={ex.id} className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 last:border-0">
+                <div key={ex.id} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-zinc-100">{ex.name}</p>
-                    <p className="mt-0.5 text-xs text-zinc-600">
-                      {mg?.name ?? ex.category}{ex.is_unilateral ? ' · Unilateral' : ''}
-                    </p>
+                    <p className="text-sm font-medium text-slate-800">{ex.name}</p>
+                    {mg && (
+                      <span
+                        className="mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        style={{ background: col!.bg, color: col!.text }}
+                      >
+                        {mg.name}
+                      </span>
+                    )}
                   </div>
+                  {ex.is_unilateral && (
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">L/R</span>
+                  )}
                 </div>
               )
             })}
           </div>
-        ) : (
+        ) : groupedRows ? (
           /* Grouped view */
-          grouped.map(({ style, groups }) => (
-            <div key={style} className="mb-4">
-              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-zinc-600">
-                {style}
-              </p>
-              {groups.map(({ group, exercises: exList }) => (
-                <MuscleGroupSection key={group.id} group={group} exercises={exList} />
-              ))}
-            </div>
-          ))
-        )}
+          <div className="flex flex-col gap-3">
+            {groupedRows.map(({ group, exercises: exList }) => {
+              const col = getMuscleColor(group.name)
+              return (
+                <GroupSection key={group.id} group={group} exercises={exList} col={col} />
+              )
+            })}
+          </div>
+        ) : null}
       </div>
 
       <AddExerciseSheet
@@ -224,6 +248,46 @@ export default function LibraryScreen() {
         onAdd={addExercise}
         onAddMuscleGroup={addMuscleGroup}
       />
+    </div>
+  )
+}
+
+function GroupSection({
+  group, exercises, col,
+}: {
+  group: MuscleGroup
+  exercises: Exercise[]
+  col: { bg: string; text: string; bar: string }
+}) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center gap-2 px-4 py-3 border-b"
+        style={{ borderColor: open ? col.bg : 'transparent', background: col.bg + '40' }}
+      >
+        <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: col.bar }} />
+        <span className="flex-1 text-left text-xs font-bold uppercase tracking-wide" style={{ color: col.text }}>
+          {group.name}
+        </span>
+        <span className="text-xs font-semibold" style={{ color: col.bar }}>
+          {open ? '▲' : `${exercises.length}`}
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden"
+          >
+            {exercises.map(ex => <ExerciseRow key={ex.id} ex={ex} groupName={group.name} />)}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
