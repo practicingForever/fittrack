@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '@/lib/db'
-import { seedLibrary, searchExercises, createExercise, createMuscleGroup, type CreateExerciseInput } from '@/lib/exercises'
+import { supabase } from '@/lib/supabase'
+import { createExercise, createMuscleGroup, type CreateExerciseInput } from '@/lib/exercises'
 import { useAuth } from '@/features/auth/AuthContext'
 import type { Exercise, MuscleGroup, ExerciseCat } from '@/lib/types'
 
@@ -9,42 +10,63 @@ export type CategoryFilter = ExerciseCat | 'all'
 
 export function useLibrary() {
   const { user } = useAuth()
+  const [allExercises, setAllExercises] = useState<Exercise[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [library, setLibrary] = useState<LibraryFilter>('all')
   const [loading, setLoading] = useState(true)
-  const [seeded, setSeeded] = useState(false)
 
-  // Seed from Supabase first, then mark ready.
-  // Always set seeded=true even on error so Dexie is queried with whatever data exists.
+  // Load directly from Supabase on mount, cache to Dexie as side-effect
   useEffect(() => {
     if (!user) return
-    seedLibrary()
-      .catch(console.error)
-      .finally(() => setSeeded(true))
+    setLoading(true)
+
+    Promise.all([
+      supabase.from('exercises').select('*'),
+      supabase.from('muscle_groups').select('*').order('sort_order'),
+    ]).then(([{ data: exData }, { data: mgData }]) => {
+      const exs = (exData ?? []) as Exercise[]
+      const mgs = (mgData ?? []) as MuscleGroup[]
+
+      setAllExercises(exs)
+      setMuscleGroups(mgs)
+      setLoading(false)
+
+      // Cache to Dexie for offline use (non-blocking)
+      if (exs.length) db.exercises.bulkPut(exs).catch(() => {})
+      if (mgs.length) db.muscle_groups.bulkPut(mgs).catch(() => {})
+    }).catch(() => {
+      // Supabase failed — fall back to Dexie
+      Promise.all([
+        db.exercises.toCollection().toArray().catch(() => [] as Exercise[]),
+        db.muscle_groups.orderBy('sort_order').toArray().catch(() => [] as MuscleGroup[]),
+      ]).then(([exs, mgs]) => {
+        setAllExercises(exs)
+        setMuscleGroups(mgs)
+        setLoading(false)
+      })
+    })
   }, [user])
 
-  // Load muscle groups after seed completes
+  // Filter exercises whenever source data or filters change
   useEffect(() => {
-    if (!seeded) return
-    db.muscle_groups.orderBy('sort_order').toArray().then(setMuscleGroups)
-  }, [seeded])
-
-  // Reactive search — only after seed completes
-  useEffect(() => {
-    if (!user || !seeded) return
-    searchExercises({ query, category, library, userId: user.id })
-      .then(results => { setExercises(results); setLoading(false) })
-  }, [query, category, library, user, seeded])
+    const q = query.toLowerCase().trim()
+    const filtered = allExercises.filter(ex => {
+      if (q && !ex.name.toLowerCase().includes(q)) return false
+      if (category !== 'all' && ex.category !== category) return false
+      if (library === 'mine' && ex.owner_id !== user?.id) return false
+      if (library === 'shared' && ex.visibility !== 'shared') return false
+      return true
+    })
+    setExercises(filtered)
+  }, [allExercises, query, category, library, user])
 
   const addExercise = useCallback(async (input: Omit<CreateExerciseInput, 'userId'>) => {
     if (!user) return
     const ex = await createExercise({ ...input, userId: user.id })
-    setExercises(prev => [ex, ...prev])
-    // Reload muscle groups in case junction table has new rows
-    db.muscle_groups.orderBy('sort_order').toArray().then(setMuscleGroups)
+    setAllExercises(prev => [ex, ...prev])
   }, [user])
 
   const addMuscleGroup = useCallback(async (name: string) => {
