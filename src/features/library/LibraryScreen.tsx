@@ -145,17 +145,10 @@ export default function LibraryScreen() {
           ))}
         </div>
 
-        {/* Muscle group pill row — slides in when style is not 'all' */}
-        <AnimatePresence initial={false}>
-          {styleFilter !== 'all' && visibleGroups.length > 0 && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="overflow-hidden"
-            >
-              <div className="flex gap-2 overflow-x-auto py-2 scrollbar-none">
+        {/* Muscle group pill row — always visible */}
+        {visibleGroups.length > 0 && (
+          <div className="overflow-hidden">
+            <div className="flex gap-2 overflow-x-auto py-2 scrollbar-none">
                 <button
                   onClick={() => setGroupFilter('all')}
                   className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors"
@@ -183,10 +176,9 @@ export default function LibraryScreen() {
                     </button>
                   )
                 })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
