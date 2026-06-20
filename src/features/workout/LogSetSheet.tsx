@@ -47,11 +47,16 @@ export default function LogSetSheet({ open, onClose, exercise, setIndex, ghost, 
   const [side, setSide]     = useState<SetSide>('both')
   const [loading, setLoading] = useState(false)
 
+  const defaultSide = (ex: Exercise | null, idx: number): SetSide => {
+    if (!ex?.is_unilateral) return 'both'
+    return idx % 2 === 1 ? 'left' : 'right'
+  }
+
   useEffect(() => {
     setWeight('')
     setReps('')
     setType('working')
-    setSide('both')
+    setSide(defaultSide(exercise, setIndex))
   }, [exercise?.id, setIndex])
 
   const ghostDisplayWeight = ghost ? toDisplay(ghost.weight_kg, unit) : null
