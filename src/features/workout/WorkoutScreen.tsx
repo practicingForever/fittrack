@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkout } from './useWorkout'
 import LogSetSheet from './LogSetSheet'
@@ -6,10 +6,10 @@ import LogCardioSheet from './LogCardioSheet'
 import ExercisePicker from './ExercisePicker'
 import { useRestTimer } from './useRestTimer'
 import RestTimerBar from './RestTimerBar'
-import PlansScreen from './PlansScreen'
+import PlanBuilderSheet from './PlanBuilderSheet'
 import EditSetSheet from './EditSetSheet'
 import WorkoutHistorySheet from './WorkoutHistorySheet'
-import { touchPlan } from '@/lib/plans'
+import { touchPlan, getPlans, getPlanExercises, deletePlan } from '@/lib/plans'
 import { db } from '@/lib/db'
 import type { Exercise, StrengthSet, WorkoutPlan, PlanExercise } from '@/lib/types'
 import { getPreviousSet } from '@/lib/workouts'
@@ -35,8 +35,13 @@ export default function WorkoutScreen() {
     editSet, deleteSet,
   } = useWorkout()
 
-  const [showPlans, setShowPlans] = useState(false)
+  const [plans, setPlans] = useState<WorkoutPlan[]>([])
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<WorkoutPlan | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+
+  const reloadPlans = () => getPlans().then(setPlans)
+  useEffect(() => { reloadPlans() }, [])
   const [editSheet, setEditSheet] = useState<{ open: boolean; set: StrengthSet | null }>({ open: false, set: null })
   const [planTargets, setPlanTargets] = useState<Map<string, PlanExercise>>(new Map())
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -50,18 +55,22 @@ export default function WorkoutScreen() {
 
   const { state: restState, start: startRest, skip: skipRest, setDuration: setRestDuration } = useRestTimer(90)
 
-  const handleStartFromPlan = async (plan: WorkoutPlan, planExercises: PlanExercise[]) => {
+  const handleStartFromPlan = async (plan: WorkoutPlan) => {
+    const planExercises = await getPlanExercises(plan.id)
     await touchPlan(plan.id)
     await startWorkout()
-    // Map exercise_id -> plan exercise for ghost text
     const targetMap = new Map(planExercises.map(pe => [pe.exercise_id, pe]))
     setPlanTargets(targetMap)
-    setShowPlans(false)
-    // Add all exercises
     for (const pe of planExercises) {
       const ex = await db.exercises.get(pe.exercise_id)
       if (ex) await addExercise(ex)
     }
+  }
+
+  const handleDeletePlan = async (plan: WorkoutPlan) => {
+    if (!confirm(`Delete "${plan.name}"?`)) return
+    await deletePlan(plan.id)
+    reloadPlans()
   }
 
   const openLogSheet = async (exercise: Exercise, currentSetCount: number) => {
@@ -95,47 +104,111 @@ export default function WorkoutScreen() {
     await endWorkout()
   }
 
-  // No active workout
+  // No active workout — home screen
   if (!workout) {
-    if (showPlans) {
-      return (
-        <PlansScreen
-          onStartFromPlan={handleStartFromPlan}
-          onBack={() => setShowPlans(false)}
-        />
-      )
-    }
-
     return (
       <>
-        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 pb-24">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-xs flex flex-col gap-3"
-          >
-            <h1 className="mb-2 text-center text-2xl font-bold text-slate-900">FitTrack</h1>
+        <div className="flex min-h-screen flex-col bg-slate-50 pb-28">
+          {/* Header */}
+          <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 pt-12 pb-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold text-slate-900">Workout</h1>
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="text-xs font-medium text-slate-400 hover:text-slate-600"
+              >
+                History
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-5 px-4 pt-5">
+            {/* Quick start */}
             <button
               onClick={startWorkout}
               className="w-full rounded-2xl bg-white border border-slate-200 py-4 text-base font-semibold text-slate-900 shadow-sm"
             >
-              Start blank workout
+              + Start blank workout
             </button>
-            <button
-              onClick={() => setShowPlans(true)}
-              className="w-full rounded-2xl py-4 text-base font-semibold text-white"
-              style={{ background: '#2563eb' }}
-            >
-              Start from plan
-            </button>
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="w-full rounded-2xl py-3 text-sm text-slate-400 hover:text-slate-600"
-            >
-              View history
-            </button>
-          </motion.div>
+
+            {/* Plans section */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">My plans</h2>
+                <button
+                  onClick={() => { setEditingPlan(null); setBuilderOpen(true) }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white"
+                  style={{ background: '#2563eb' }}
+                >
+                  +
+                </button>
+              </div>
+
+              {plans.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl bg-white border border-slate-100 py-10 text-center">
+                  <p className="text-sm text-slate-400">No plans yet</p>
+                  <button
+                    onClick={() => { setEditingPlan(null); setBuilderOpen(true) }}
+                    className="rounded-xl px-5 py-2 text-sm font-semibold text-white"
+                    style={{ background: '#2563eb' }}
+                  >
+                    Create your first plan
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {plans.map(plan => (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl bg-white border border-slate-100 p-4"
+                    >
+                      <div className="mb-3 flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{plan.name}</p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            {new Date(plan.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setEditingPlan(plan); setBuilderOpen(true) }}
+                            className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-500"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlan(plan)}
+                            className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-red-500"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleStartFromPlan(plan)}
+                        className="w-full rounded-xl py-3 text-sm font-semibold text-white"
+                        style={{ background: '#2563eb' }}
+                      >
+                        Start this plan
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        <PlanBuilderSheet
+          open={builderOpen}
+          onClose={() => { setBuilderOpen(false); reloadPlans() }}
+          plan={editingPlan}
+          onPlanCreated={p => { setEditingPlan(p); reloadPlans() }}
+          onPlanUpdated={reloadPlans}
+        />
+
         {user && (
           <WorkoutHistorySheet
             open={historyOpen}
