@@ -9,18 +9,15 @@ export type TimerPhase = 'idle' | 'running' | 'rest' | 'done'
 
 export interface WodTimerState {
   phase: TimerPhase
-  currentRound: number    // 1-based
+  currentRound: number
   totalRounds: number
-  displaySeconds: number  // seconds to show on the clock (countdown or elapsed)
-  isCountingUp: boolean   // for_time counts up; others count down
+  displaySeconds: number
+  isCountingUp: boolean
 }
 
 function vibrate(pattern: number[]) {
   if ('vibrate' in navigator) navigator.vibrate(pattern)
 }
-
-// Key = `${round}:${phase}:${cueType}` — prevents re-firing the same cue
-type CueFiredSet = Set<string>
 
 export function useWodTimer(wod: Wod | null) {
   const [state, setState] = useState<WodTimerState>({
@@ -31,25 +28,34 @@ export function useWodTimer(wod: Wod | null) {
     isCountingUp: false,
   })
 
-  const startTimeRef   = useRef<number | null>(null)
-  const phaseStartRef  = useRef<number | null>(null)
-  const rafRef         = useRef<number | null>(null)
-  const firedRef       = useRef<CueFiredSet>(new Set())
+  const startTimeRef  = useRef<number | null>(null)
+  const phaseStartRef = useRef<number | null>(null)
+  const rafRef        = useRef<number | null>(null)
+  // Track what we've already announced so each cue fires exactly once
+  const firedRef      = useRef<Set<string>>(new Set())
+  // Track previous round/phase outside of setState to avoid setState-callback side-effects
+  const prevRoundRef  = useRef(0)
+  const prevPhaseRef  = useRef<TimerPhase>('idle')
 
-  // Fire a cue at most once per unique key
   function once(key: string, fn: () => void) {
     if (firedRef.current.has(key)) return
     firedRef.current.add(key)
     fn()
   }
 
+  function roundLabel(round: number, total: number): string {
+    if (round === total)     return 'Last round'
+    if (round === total - 1) return '2 rounds to go'
+    return `Round ${round}`
+  }
+
   const tick = useCallback(() => {
     if (!wod || !startTimeRef.current || !phaseStartRef.current) return
-    const now = performance.now()
+    const now     = performance.now()
     const elapsed = (now - phaseStartRef.current) / 1000
 
     if (wod.type === 'for_time') {
-      const cap = wod.total_seconds
+      const cap     = wod.total_seconds
       const display = Math.floor(elapsed)
       if (cap && display >= cap) {
         setState(s => ({ ...s, phase: 'done', displaySeconds: cap }))
@@ -57,17 +63,16 @@ export function useWodTimer(wod: Wod | null) {
         once('done', playComplete)
         return
       }
-      // for_time counts up — warn at (cap - 30) and (cap - 10) remaining
       if (cap) {
-        const remaining = cap - display
-        if (remaining === 30) once('warn30', playWarning30)
-        if (remaining === 10) once('warn10', playWarning10)
-        if (remaining === 3)  once('countdown', playCountdown)
+        const rem = cap - display
+        if (rem === 30) once('warn30', playWarning30)
+        if (rem === 10) once('warn10', playWarning10)
+        if (rem === 3)  once('countdown', playCountdown)
       }
       setState(s => ({ ...s, displaySeconds: display, isCountingUp: true }))
 
     } else if (wod.type === 'amrap') {
-      const cap = wod.total_seconds ?? 600
+      const cap       = wod.total_seconds ?? 600
       const remaining = cap - elapsed
       if (remaining <= 0) {
         setState(s => ({ ...s, phase: 'done', displaySeconds: 0 }))
@@ -93,21 +98,23 @@ export function useWodTimer(wod: Wod | null) {
         return
       }
       const currentRound = Math.floor(totalElapsed / interval) + 1
-      const intoInterval = totalElapsed % interval
-      const remaining    = interval - intoInterval
-      const rem          = Math.ceil(remaining)
+      const rem          = Math.ceil(interval - (totalElapsed % interval))
 
-      if (rem === 30) once(`r${currentRound}:warn30`, playWarning30)
+      // Per-round warnings on the countdown clock
+      if (rem === 30 && interval > 35) once(`r${currentRound}:warn30`, playWarning30)
       if (rem === 10) once(`r${currentRound}:warn10`, playWarning10)
       if (rem === 3)  once(`r${currentRound}:countdown`, playCountdown)
 
-      setState(prev => {
-        if (currentRound !== prev.currentRound) {
-          vibrate([100])
-          once(`r${currentRound}:start`, () => playRoundStart(`Round ${currentRound}`))
-        }
-        return { ...prev, currentRound, totalRounds, displaySeconds: rem }
-      })
+      // Round change — fire outside setState using ref comparison
+      if (currentRound !== prevRoundRef.current) {
+        prevRoundRef.current = currentRound
+        vibrate([100])
+        once(`r${currentRound}:start`, () =>
+          playRoundStart(roundLabel(currentRound, totalRounds))
+        )
+      }
+
+      setState(s => ({ ...s, currentRound, totalRounds, displaySeconds: rem }))
 
     } else if (wod.type === 'tabata') {
       const work        = wod.work_seconds ?? 20
@@ -125,27 +132,29 @@ export function useWodTimer(wod: Wod | null) {
       const currentRound = Math.floor(totalElapsed / cycleLen) + 1
       const intoRound    = totalElapsed % cycleLen
       const isWork       = intoRound < work
-      const remaining    = isWork ? work - intoRound : cycleLen - intoRound
-      const rem          = Math.ceil(remaining)
+      const rem          = Math.ceil(isWork ? work - intoRound : cycleLen - intoRound)
+      const newPhase: TimerPhase = isWork ? 'running' : 'rest'
       const phaseKey     = isWork ? 'work' : 'rest'
 
-      // 3-2-1 countdown before each phase transition
       if (rem === 3) once(`r${currentRound}:${phaseKey}:countdown`, playCountdown)
 
-      setState(prev => {
-        const newPhase: TimerPhase = isWork ? 'running' : 'rest'
-        if (newPhase !== prev.phase) {
-          vibrate(isWork ? [100] : [50])
-          if (isWork) {
-            once(`r${currentRound}:work:start`, () =>
-              playRoundStart(totalRounds > 1 ? `Round ${currentRound}` : 'Work')
+      // Phase/round change detection via refs
+      if (newPhase !== prevPhaseRef.current || currentRound !== prevRoundRef.current) {
+        prevPhaseRef.current = newPhase
+        prevRoundRef.current = currentRound
+        vibrate(isWork ? [100] : [50])
+        if (isWork) {
+          once(`r${currentRound}:work:start`, () =>
+            playRoundStart(
+              totalRounds > 1 ? roundLabel(currentRound, totalRounds) : 'Work'
             )
-          } else {
-            once(`r${currentRound}:rest:start`, playRestStart)
-          }
+          )
+        } else {
+          once(`r${currentRound}:rest:start`, playRestStart)
         }
-        return { ...prev, phase: newPhase, currentRound, totalRounds, displaySeconds: rem }
-      })
+      }
+
+      setState(s => ({ ...s, phase: newPhase, currentRound, totalRounds, displaySeconds: rem }))
     }
 
     rafRef.current = requestAnimationFrame(tick)
@@ -153,7 +162,9 @@ export function useWodTimer(wod: Wod | null) {
 
   const start = useCallback(() => {
     if (!wod) return
-    firedRef.current = new Set() // reset cue history on each new start
+    firedRef.current   = new Set()
+    prevRoundRef.current = 0  // will trigger round-1 announcement on first tick
+    prevPhaseRef.current = 'idle'
     const now = performance.now()
     startTimeRef.current  = now
     phaseStartRef.current = now
@@ -165,8 +176,6 @@ export function useWodTimer(wod: Wod | null) {
       displaySeconds: wod.type === 'for_time' ? 0 : (wod.total_seconds ?? wod.interval_seconds ?? 60),
       isCountingUp: wod.type === 'for_time',
     })
-    // Announce round 1 start
-    playRoundStart(wod.type === 'emom' ? 'Round 1' : undefined)
     rafRef.current = requestAnimationFrame(tick)
   }, [wod, tick])
 

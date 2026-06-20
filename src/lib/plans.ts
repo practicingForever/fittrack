@@ -39,6 +39,7 @@ export async function addExerciseToPlan(
     target_sets: targetSets,
     target_reps: targetReps,
     target_weight_kg: targetWeightKg,
+    target_weights_kg: Array(targetSets).fill(null),
   }
   await db.plan_exercises.put(pe)
   return pe
@@ -46,7 +47,7 @@ export async function addExerciseToPlan(
 
 export async function updatePlanExercise(
   peId: string,
-  updates: Partial<Pick<PlanExercise, 'target_sets' | 'target_reps' | 'target_weight_kg'>>
+  updates: Partial<Pick<PlanExercise, 'target_sets' | 'target_reps' | 'target_weight_kg' | 'target_weights_kg'>>
 ): Promise<void> {
   await db.plan_exercises.update(peId, updates)
 }
@@ -64,7 +65,6 @@ export async function getPlanExercises(planId: string): Promise<PlanExercise[]> 
   return items.sort((a, b) => a.order_index - b.order_index)
 }
 
-/** Touch updated_at so this plan floats to top of recents. */
 export async function touchPlan(planId: string): Promise<void> {
   await db.workout_plans.update(planId, { updated_at: new Date().toISOString() })
 }

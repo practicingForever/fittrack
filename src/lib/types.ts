@@ -113,6 +113,7 @@ export interface PlanExercise {
   target_sets: number
   target_reps: number | null
   target_weight_kg: number | null
+  target_weights_kg: (number | null)[] | null  // per-set weights; overrides target_weight_kg when set
 }
 
 export interface CardioSet {

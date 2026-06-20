@@ -26,7 +26,7 @@ describe('plans helpers', () => {
 
   it('plan exercise order_index increments', () => {
     const existing: PlanExercise[] = [
-      { id: 'pe1', plan_id: 'p1', exercise_id: 'e1', exercise_name: 'Bench', order_index: 0, target_sets: 3, target_reps: 5, target_weight_kg: 100 },
+      { id: 'pe1', plan_id: 'p1', exercise_id: 'e1', exercise_name: 'Bench', order_index: 0, target_sets: 3, target_reps: 5, target_weight_kg: 100, target_weights_kg: [100, 100, 100] },
     ]
     const nextIndex = existing.length
     expect(nextIndex).toBe(1)
@@ -35,7 +35,7 @@ describe('plans helpers', () => {
   it('target weight defaults to null', () => {
     const pe: PlanExercise = {
       id: 'pe1', plan_id: 'p1', exercise_id: 'e1', exercise_name: 'Squat',
-      order_index: 0, target_sets: 3, target_reps: 5, target_weight_kg: null,
+      order_index: 0, target_sets: 3, target_reps: 5, target_weight_kg: null, target_weights_kg: null,
     }
     expect(pe.target_weight_kg).toBeNull()
   })
