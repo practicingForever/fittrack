@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/features/auth/AuthContext'
 import {
-  createWorkout, finishWorkout, logStrengthSet,
+  createWorkout, finishWorkout, deleteWorkout, logStrengthSet,
   getSetsForExercise, getPreviousSet, updateStrengthSet, deleteStrengthSet, type LogSetInput
 } from '@/lib/workouts'
 import { logCardioSet, type LogCardioInput } from '@/lib/cardio'
@@ -89,6 +89,20 @@ export function useWorkout() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
   }, [workout])
 
+  const cancelWorkout = useCallback(async () => {
+    if (!workout) return
+    await deleteWorkout(workout.id)
+    setWorkout(null)
+    setEntries([])
+    setElapsed(0)
+    setCardioSets([])
+    setActiveWod(null)
+    setTimerStatus('idle')
+    timerStartRef.current = null
+    accumulatedRef.current = 0
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+  }, [workout])
+
   const addExercise = useCallback(async (exercise: Exercise) => {
     if (!workout) return
     // Don't add duplicates
@@ -157,7 +171,7 @@ export function useWorkout() {
     workout, entries, elapsed,
     cardioSets, logCardio,
     activeWod, startWod, clearWod,
-    startWorkout, endWorkout, addExercise, logSet, getGhostSet,
+    startWorkout, endWorkout, cancelWorkout, addExercise, logSet, getGhostSet,
     timerStatus, startTimer, pauseTimer, resumeTimer,
     editSet, deleteSet,
   }

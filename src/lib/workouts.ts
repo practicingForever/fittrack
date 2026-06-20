@@ -23,6 +23,11 @@ export async function createWorkout(userId: string, title = ''): Promise<Workout
   return workout
 }
 
+export async function deleteWorkout(workoutId: string): Promise<void> {
+  await db.strength_sets.where('workout_id').equals(workoutId).delete()
+  await db.workouts.delete(workoutId)
+}
+
 export async function finishWorkout(workoutId: string): Promise<void> {
   const now = new Date().toISOString()
   await db.workouts.update(workoutId, { ended_at: now, updated_at: now })

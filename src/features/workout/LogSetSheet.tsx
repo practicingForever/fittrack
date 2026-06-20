@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import BottomSheet from '@/components/BottomSheet'
-import { getUnitPref, toDisplay, toKg } from '@/lib/units'
-import type { Exercise, SetType, SetSide, StrengthSet } from '@/lib/types'
+import { getUnitPref, setUnitPref, toDisplay, toKg } from '@/lib/units'
+import type { Exercise, SetType, SetSide, StrengthSet, WeightUnit } from '@/lib/types'
 import type { LogSetInput } from '@/lib/workouts'
 
 interface LogSetSheetProps {
@@ -29,8 +29,19 @@ const SIDES: { id: SetSide; label: string }[] = [
 ]
 
 export default function LogSetSheet({ open, onClose, exercise, setIndex, ghost, onLog }: LogSetSheetProps) {
-  const unit = getUnitPref()
+  const [unit, setUnit] = useState<WeightUnit>(getUnitPref)
   const [weight, setWeight] = useState('')
+
+  const toggleUnit = () => {
+    const next: WeightUnit = unit === 'kg' ? 'lbs' : 'kg'
+    setUnit(next)
+    setUnitPref(next)
+    // Convert the currently-typed value to the new unit so the number stays coherent
+    if (weight !== '') {
+      const inKg = toKg(parseFloat(weight), unit)
+      setWeight(String(toDisplay(inKg, next)))
+    }
+  }
   const [reps, setReps]     = useState('')
   const [type, setType]     = useState<SetType>('working')
   const [side, setSide]     = useState<SetSide>('both')
@@ -79,7 +90,23 @@ export default function LogSetSheet({ open, onClose, exercise, setIndex, ghost, 
         {/* Weight + Reps */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <p className="mb-1.5 text-xs font-medium text-slate-500">Weight ({unit})</p>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500">Weight</p>
+              <button
+                onClick={toggleUnit}
+                className="flex rounded-full border border-slate-200 bg-white text-[10px] font-bold overflow-hidden"
+              >
+                {(['kg', 'lbs'] as WeightUnit[]).map(u => (
+                  <span
+                    key={u}
+                    className="px-2 py-0.5 transition-colors"
+                    style={unit === u ? { background: '#2563eb', color: '#fff' } : { color: '#94a3b8' }}
+                  >
+                    {u}
+                  </span>
+                ))}
+              </button>
+            </div>
             <input
               type="number"
               inputMode="decimal"

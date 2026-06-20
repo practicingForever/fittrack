@@ -29,7 +29,7 @@ export default function WorkoutScreen() {
   const { user } = useAuth()
   const {
     workout, entries, elapsed,
-    startWorkout, endWorkout, addExercise, logSet,
+    startWorkout, endWorkout, cancelWorkout, addExercise, logSet,
     cardioSets, logCardio,
     timerStatus, startTimer, pauseTimer, resumeTimer,
     editSet, deleteSet,
@@ -102,6 +102,11 @@ export default function WorkoutScreen() {
   const handleEndWorkout = async () => {
     if (!confirm('Finish workout?')) return
     await endWorkout()
+  }
+
+  const handleCancelWorkout = async () => {
+    if (!confirm('Discard this workout? All logged sets will be deleted.')) return
+    await cancelWorkout()
   }
 
   // No active workout — home screen
@@ -261,6 +266,12 @@ export default function WorkoutScreen() {
                 Resume
               </button>
             )}
+            <button
+              onClick={handleCancelWorkout}
+              className="rounded-xl bg-zinc-900 px-3 py-2.5 text-sm font-medium text-zinc-600 hover:text-red-400"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleEndWorkout}
               className="rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700"
