@@ -82,7 +82,7 @@ export default function PlanBuilderSheet({
     onPlanUpdated()
   }
 
-  const inputClass = 'h-10 w-full rounded-lg bg-zinc-800 px-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-700 focus:ring-zinc-500 text-center tabular-nums'
+  const inputClass = 'h-10 w-full rounded-lg bg-slate-100 px-3 text-sm text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-200 focus:ring-blue-300 text-center tabular-nums'
 
   const handleClone = async () => {
     if (!activePlan) return
@@ -117,7 +117,7 @@ export default function PlanBuilderSheet({
               value={name}
               onChange={e => setName(e.target.value)}
               onBlur={handleSaveName}
-              className="h-12 flex-1 rounded-xl bg-zinc-800 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-700 focus:ring-zinc-500"
+              className="h-12 flex-1 rounded-xl bg-slate-100 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-200 focus:ring-blue-300"
             />
           </div>
 
@@ -129,17 +129,17 @@ export default function PlanBuilderSheet({
                   key={pe.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl bg-zinc-800 p-3"
+                  className="rounded-xl bg-slate-50 border border-slate-100 p-3"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-medium text-zinc-100">{pe.exercise_name}</p>
-                    <button onClick={() => handleRemove(pe)} className="text-xs text-zinc-600 hover:text-red-400">
+                    <p className="text-sm font-semibold text-slate-800">{pe.exercise_name}</p>
+                    <button onClick={() => handleRemove(pe)} className="text-xs text-slate-400 hover:text-red-500">
                       Remove
                     </button>
                   </div>
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <p className="mb-1 text-center text-[10px] text-zinc-600">Sets</p>
+                      <p className="mb-1 text-center text-[10px] text-slate-400">Sets</p>
                       <input
                         type="number" inputMode="numeric"
                         value={pe.target_sets}
@@ -148,7 +148,7 @@ export default function PlanBuilderSheet({
                       />
                     </div>
                     <div className="flex-1">
-                      <p className="mb-1 text-center text-[10px] text-zinc-600">Reps</p>
+                      <p className="mb-1 text-center text-[10px] text-slate-400">Reps</p>
                       <input
                         type="number" inputMode="numeric"
                         placeholder="—"
@@ -158,7 +158,7 @@ export default function PlanBuilderSheet({
                       />
                     </div>
                     <div className="flex-1">
-                      <p className="mb-1 text-center text-[10px] text-zinc-600">kg</p>
+                      <p className="mb-1 text-center text-[10px] text-slate-400">kg</p>
                       <input
                         type="number" inputMode="decimal"
                         placeholder="—"
@@ -175,13 +175,17 @@ export default function PlanBuilderSheet({
 
           <button
             onClick={() => setPickerOpen(true)}
-            className="h-12 rounded-xl border border-dashed border-zinc-700 text-sm text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+            className="h-12 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 hover:border-blue-400 hover:text-blue-500"
           >
             + Add exercise
           </button>
 
           {activePlan && (
-            <button onClick={onClose} className="h-12 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-950">
+            <button
+              onClick={onClose}
+              className="h-12 rounded-xl text-sm font-semibold text-white"
+              style={{ background: '#2563eb' }}
+            >
               Done
             </button>
           )}
@@ -189,7 +193,7 @@ export default function PlanBuilderSheet({
             <button
               onClick={handleClone}
               disabled={cloning}
-              className="h-12 rounded-xl bg-zinc-900 text-sm font-medium text-zinc-400 disabled:opacity-50"
+              className="h-12 rounded-xl bg-slate-100 text-sm font-medium text-slate-500 disabled:opacity-50"
             >
               {cloning ? 'Saving…' : 'Save as new plan'}
             </button>

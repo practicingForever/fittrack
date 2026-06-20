@@ -108,28 +108,29 @@ export default function WorkoutScreen() {
 
     return (
       <>
-        <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 pb-24">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 pb-24">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-xs flex flex-col gap-3"
           >
-            <h1 className="mb-2 text-center text-2xl font-semibold text-zinc-100">FitTrack</h1>
+            <h1 className="mb-2 text-center text-2xl font-bold text-slate-900">FitTrack</h1>
             <button
               onClick={startWorkout}
-              className="w-full rounded-2xl bg-zinc-100 py-4 text-base font-semibold text-zinc-950"
+              className="w-full rounded-2xl bg-white border border-slate-200 py-4 text-base font-semibold text-slate-900 shadow-sm"
             >
               Start blank workout
             </button>
             <button
               onClick={() => setShowPlans(true)}
-              className="w-full rounded-2xl bg-zinc-900 py-4 text-base font-semibold text-zinc-300"
+              className="w-full rounded-2xl py-4 text-base font-semibold text-white"
+              style={{ background: '#2563eb' }}
             >
               Start from plan
             </button>
             <button
               onClick={() => setHistoryOpen(true)}
-              className="w-full rounded-2xl py-3 text-sm text-zinc-600 hover:text-zinc-400"
+              className="w-full rounded-2xl py-3 text-sm text-slate-400 hover:text-slate-600"
             >
               View history
             </button>

@@ -12,10 +12,10 @@ const WOD_TYPES: { id: WodType; label: string; description: string }[] = [
 ]
 
 const PHASE_COLORS: Record<string, string> = {
-  running: 'text-zinc-100',
-  rest:    'text-sky-400',
-  done:    'text-emerald-400',
-  idle:    'text-zinc-500',
+  running: 'text-slate-900',
+  rest:    'text-sky-500',
+  done:    'text-emerald-500',
+  idle:    'text-slate-400',
 }
 
 function formatClock(seconds: number): string {
@@ -89,7 +89,7 @@ export default function WodScreen() {
     setResultRounds('')
   }
 
-  const inputClass = 'h-11 w-full rounded-xl bg-zinc-800 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-1 ring-zinc-700 focus:ring-zinc-500'
+  const inputClass = 'h-11 w-full rounded-xl bg-slate-100 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-200 focus:ring-blue-300'
 
   const phase = timerState.phase
   const colorClass = PHASE_COLORS[phase] ?? 'text-zinc-100'
@@ -97,7 +97,7 @@ export default function WodScreen() {
   const isDone = phase === 'done'
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 pb-24 pt-12">
+    <div className="flex min-h-screen flex-col bg-slate-50 pb-24 pt-12">
       <AnimatePresence mode="wait">
         {/* ── Config screen ── */}
         {!isActive && !isDone && (
@@ -108,7 +108,7 @@ export default function WodScreen() {
             exit={{ opacity: 0, y: -12 }}
             className="flex flex-1 flex-col px-4"
           >
-            <h1 className="mb-6 text-2xl font-semibold text-zinc-100">WOD timer</h1>
+            <h1 className="mb-6 text-2xl font-bold text-slate-900">WOD timer</h1>
 
             {/* Type selector */}
             <div className="mb-4 flex flex-col gap-2">
@@ -116,14 +116,14 @@ export default function WodScreen() {
                 <button
                   key={w.id}
                   onClick={() => setType(w.id)}
-                  className={`flex items-start gap-3 rounded-xl p-3 text-left ring-1 transition-colors ${
-                    type === w.id ? 'bg-zinc-800 ring-zinc-600' : 'ring-zinc-800'
+                  className={`flex items-start gap-3 rounded-xl p-3 text-left border transition-colors ${
+                    type === w.id ? 'bg-white border-blue-200 shadow-sm' : 'border-slate-200 bg-white'
                   }`}
                 >
-                  <div className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${type === w.id ? 'border-zinc-100 bg-zinc-100' : 'border-zinc-600'}`} />
+                  <div className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${type === w.id ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`} />
                   <div>
-                    <p className="text-sm font-medium text-zinc-100">{w.label}</p>
-                    <p className="text-xs text-zinc-500">{w.description}</p>
+                    <p className="text-sm font-semibold text-slate-800">{w.label}</p>
+                    <p className="text-xs text-slate-400">{w.description}</p>
                   </div>
                 </button>
               ))}
@@ -175,7 +175,8 @@ export default function WodScreen() {
 
             <button
               onClick={handleStart}
-              className="h-12 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-950"
+              className="h-12 rounded-xl text-sm font-semibold text-white"
+              style={{ background: '#2563eb' }}
             >
               Start WOD
             </button>
@@ -191,47 +192,43 @@ export default function WodScreen() {
             exit={{ opacity: 0, scale: 0.96 }}
             className="flex flex-1 flex-col items-center justify-center gap-6 px-4"
           >
-            {/* Type + round */}
             <div className="text-center">
-              <p className="text-xs font-medium uppercase tracking-widest text-zinc-600">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 {activeWod.type.replace('_', ' ')}
               </p>
               {timerState.totalRounds > 1 && (
-                <p className="mt-1 text-sm text-zinc-400">
+                <p className="mt-1 text-sm text-slate-500">
                   {phase === 'rest' ? 'Rest' : `Round ${timerState.currentRound}`} / {timerState.totalRounds}
                 </p>
               )}
             </div>
 
-            {/* Phase label for Tabata */}
             {activeWod.type === 'tabata' && (
-              <p className={`text-lg font-semibold ${phase === 'rest' ? 'text-sky-400' : 'text-zinc-300'}`}>
+              <p className={`text-lg font-semibold ${phase === 'rest' ? 'text-sky-500' : 'text-slate-700'}`}>
                 {phase === 'rest' ? 'Rest' : 'Work'}
               </p>
             )}
 
-            {/* Big clock */}
             <span className={`font-mono text-8xl font-bold tabular-nums ${colorClass}`}>
               {timerState.isCountingUp ? '+' : ''}{formatClock(timerState.displaySeconds)}
             </span>
 
             {activeWod.title && (
-              <p className="text-sm text-zinc-500">{activeWod.title}</p>
+              <p className="text-sm text-slate-400">{activeWod.title}</p>
             )}
 
-            {/* Controls */}
             <div className="flex gap-3">
               {activeWod.type === 'for_time' && (
                 <button
                   onClick={handleDone}
-                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white"
+                  className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white"
                 >
                   Done
                 </button>
               )}
               <button
                 onClick={handleStop}
-                className="rounded-xl bg-zinc-800 px-6 py-3 text-sm font-semibold text-zinc-400"
+                className="rounded-xl bg-slate-200 px-6 py-3 text-sm font-semibold text-slate-600"
               >
                 Stop
               </button>
@@ -247,35 +244,35 @@ export default function WodScreen() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-1 flex-col items-center justify-center gap-6 px-4"
           >
-            <p className="text-lg font-semibold text-emerald-400">WOD complete!</p>
+            <p className="text-lg font-semibold text-emerald-500">WOD complete!</p>
 
             {activeWod.type === 'for_time' && (
-              <div className="w-full rounded-2xl bg-zinc-900 p-6 text-center">
-                <p className="text-xs text-zinc-500">Your time</p>
-                <p className="mt-2 font-mono text-6xl font-bold text-emerald-400">
+              <div className="w-full rounded-2xl bg-white border border-slate-100 p-6 text-center">
+                <p className="text-xs text-slate-400">Your time</p>
+                <p className="mt-2 font-mono text-6xl font-bold text-emerald-500">
                   {formatDuration(elapsedSeconds)}
                 </p>
               </div>
             )}
 
             {activeWod.type === 'amrap' && (
-              <div className="w-full rounded-2xl bg-zinc-900 p-6">
-                <p className="mb-3 text-sm text-zinc-400">How many rounds did you complete?</p>
+              <div className="w-full rounded-2xl bg-white border border-slate-100 p-6">
+                <p className="mb-3 text-sm text-slate-500">How many rounds did you complete?</p>
                 <input
                   type="number"
                   inputMode="numeric"
                   placeholder="Rounds"
                   value={resultRounds}
                   onChange={e => setResultRounds(e.target.value)}
-                  className="h-14 w-full rounded-xl bg-zinc-800 px-4 text-center text-2xl font-semibold text-zinc-100 outline-none ring-1 ring-zinc-700"
+                  className="h-14 w-full rounded-xl bg-slate-100 px-4 text-center text-2xl font-semibold text-slate-800 outline-none ring-1 ring-slate-200"
                 />
               </div>
             )}
 
             {(activeWod.type === 'emom' || activeWod.type === 'tabata') && (
-              <div className="w-full rounded-2xl bg-zinc-900 p-6 text-center">
-                <p className="text-zinc-400">Great work!</p>
-                <p className="mt-1 text-xs text-zinc-600">
+              <div className="w-full rounded-2xl bg-white border border-slate-100 p-6 text-center">
+                <p className="text-slate-600">Great work!</p>
+                <p className="mt-1 text-xs text-slate-400">
                   {timerState.totalRounds} rounds completed
                 </p>
               </div>
@@ -283,7 +280,8 @@ export default function WodScreen() {
 
             <button
               onClick={handleReset}
-              className="w-full rounded-xl bg-zinc-100 py-3 text-sm font-semibold text-zinc-950"
+              className="w-full rounded-xl text-sm font-semibold text-white py-3"
+              style={{ background: '#2563eb' }}
             >
               New WOD
             </button>
