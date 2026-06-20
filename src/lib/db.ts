@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type {
-  Profile, Connection, MuscleGroup, Exercise, ExerciseMuscleGroup,
+  Profile, Connection, MuscleGroup, Exercise,
   Workout, Wod, StrengthSet, CardioSet,
   WorkoutPlan, PlanExercise
 } from './types'
@@ -21,7 +21,6 @@ export class FitTrackDB extends Dexie {
   connections!: Table<Connection, string>
   muscle_groups!: Table<MuscleGroup, string>
   exercises!: Table<Exercise, string>
-  exercise_muscle_groups!: Table<ExerciseMuscleGroup, [string, string]>
   workouts!: Table<Workout, string>
   wods!: Table<Wod, string>
   strength_sets!: Table<StrengthSet, string>
@@ -46,9 +45,6 @@ export class FitTrackDB extends Dexie {
     this.version(2).stores({
       workout_plans:  'id, created_at',
       plan_exercises: 'id, plan_id',
-    })
-    this.version(3).stores({
-      exercise_muscle_groups: '[exercise_id+muscle_group_id], exercise_id, muscle_group_id',
     })
   }
 }

@@ -1,9 +1,9 @@
 import { db } from './db'
 import { supabase } from './supabase'
 import { enqueueMutation } from './sync'
-import type { Exercise, ExerciseMuscleGroup, MuscleGroup, ExerciseCat, ExerciseVisibility } from './types'
+import type { Exercise, MuscleGroup, ExerciseCat, ExerciseVisibility } from './types'
 
-/** Seed local Dexie with exercises + muscle groups + junction rows from Supabase. */
+/** Seed local Dexie with exercises + muscle groups from Supabase. */
 export async function seedLibrary(): Promise<void> {
   const [{ data: exercises }, { data: groups }] = await Promise.all([
     supabase.from('exercises').select('*'),
@@ -15,22 +15,6 @@ export async function seedLibrary(): Promise<void> {
   if (groups?.length) {
     await db.muscle_groups.bulkPut(groups as unknown as MuscleGroup[])
   }
-  // Junction table may not exist yet — seed it separately so a failure here
-  // doesn't block exercises/muscle groups from loading.
-  try {
-    const { data: emg } = await supabase.from('exercise_muscle_groups').select('*')
-    if (emg?.length) {
-      await db.exercise_muscle_groups.bulkPut(emg as unknown as ExerciseMuscleGroup[])
-    }
-  } catch {
-    // table not migrated yet — non-fatal
-  }
-}
-
-/** Returns all muscle group IDs associated with an exercise. */
-export async function getExerciseMuscleGroupIds(exerciseId: string): Promise<string[]> {
-  const rows = await db.exercise_muscle_groups.where('exercise_id').equals(exerciseId).toArray()
-  return rows.map(r => r.muscle_group_id)
 }
 
 export interface ExerciseFilters {
@@ -82,11 +66,12 @@ export async function createExercise(input: CreateExerciseInput): Promise<Exerci
   await db.exercises.put(exercise)
   await enqueueMutation('insert', 'exercises', exercise)
 
-  // Write junction rows for all selected muscle groups
+  // Enqueue junction rows for all selected muscle groups (Supabase only, not Dexie)
   for (const mgId of input.muscleGroupIds) {
-    const row: ExerciseMuscleGroup = { exercise_id: exercise.id, muscle_group_id: mgId }
-    await db.exercise_muscle_groups.put(row)
-    await enqueueMutation('insert', 'exercise_muscle_groups', row)
+    await enqueueMutation('insert', 'exercise_muscle_groups', {
+      exercise_id: exercise.id,
+      muscle_group_id: mgId,
+    })
   }
 
   return exercise
